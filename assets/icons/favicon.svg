@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="PDF Freely">
+  <rect width="64" height="64" rx="14" fill="#18211f"/>
+  <path d="M18 10h21l11 11v33H18z" fill="#fffdfa"/>
+  <path d="M39 10v12h11z" fill="#c75d23"/>
+  <path d="M23 31h19v5H23zM23 40h15v5H23z" fill="#0f948c"/>
+  <path d="M14 18h8v8h-8zM42 46h8v8h-8z" fill="#f1b928"/>
+</svg>
