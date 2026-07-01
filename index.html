@@ -143,27 +143,14 @@
             <span>Forms, text, signatures</span>
           </a>
         </nav>
-        <div class="guarantee-pills" aria-label="Site guarantees">
-          <span class="status-pill">Free</span>
-          <span class="status-pill">No uploads</span>
-          <span class="status-pill">No watermark</span>
-        </div>
       </div>
     </header>
 
     <main class="app-shell">
       <section class="workspace-pane" aria-labelledby="workspaceTitle">
-        <div class="workspace-header">
-          <div>
-            <p class="eyebrow">PDF Workspace</p>
-            <h1 id="workspaceTitle">Organize PDF pages in your browser</h1>
-          </div>
+        <div class="workspace-header compact-header">
+          <h1 class="sr-only" id="workspaceTitle">PDF organizer</h1>
           <div class="engine-badge" id="engineBadge" aria-live="polite">Ready</div>
-        </div>
-
-        <div class="promise-strip" aria-label="Freely promise">
-          <strong>No account. No upload. No watermark. No download gate.</strong>
-          <a href="https://computefreely.com/">Compute Freely promise</a>
         </div>
 
         <div class="drop-zone" id="dropZone">
@@ -171,7 +158,6 @@
           <label class="drop-label" for="fileInput">
             <span class="drop-icon upload-icon" aria-hidden="true"></span>
             <span class="drop-title">Choose or drop PDFs and images</span>
-            <span class="drop-note">Merge, split, reorder, rotate, watermark, number pages, or make a PDF from images</span>
           </label>
         </div>
 
@@ -222,9 +208,8 @@
           <button type="button" class="mini-button danger" data-batch="remove">Remove selected</button>
         </div>
 
-        <div id="emptyState" class="empty-state">
-          <h2>Start with a PDF, JPG, PNG, or WebP.</h2>
-          <p>Files stay on your device. The app reads them in the browser and builds a new PDF only when you click a download button.</p>
+        <div id="emptyState" class="empty-state sr-only">
+          <h2>Choose PDFs or images to begin.</h2>
         </div>
 
         <div class="page-grid" id="pageGrid" aria-label="PDF pages"></div>
@@ -259,7 +244,6 @@
             <input type="checkbox" id="compactPdf" checked>
             <span>Compact output structure</span>
           </label>
-          <p class="field-note">Best-effort compression removes unused objects. Existing embedded images are not recompressed.</p>
         </section>
 
         <section class="panel" aria-labelledby="imageTitle">
@@ -304,7 +288,6 @@
             </span>
             <input type="range" id="imageQuality" min="50" max="100" step="1" value="92">
           </label>
-          <p class="field-note">Quality applies when image pages are converted through canvas. PNG transparency is preserved at 100% quality.</p>
         </section>
 
         <section class="panel" aria-labelledby="stampTitle">
