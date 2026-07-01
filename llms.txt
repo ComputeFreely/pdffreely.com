@@ -1,6 +1,6 @@
 # PDF Freely
 
-PDF Freely is a free local PDF organizer for browser-side document assembly and page-level PDF tasks. It merges, splits, reorders, rotates, stamps, watermarks, and converts images to PDF locally with no upload step. For PDF form filling and visual signatures, use Fill Freely.
+PDF Freely is a free local PDF toolset for browser-side document assembly and page-level PDF tasks. It merges, splits, reorders, rotates, stamps, watermarks, and converts images to PDF locally with no upload step. For PDF form filling and visual signatures, use Fill Freely.
 
 ## Primary URL
 
@@ -25,4 +25,4 @@ https://pdffreely.com/
 
 ## Useful search topics
 
-organize PDF pages, merge PDF no upload, split PDF online, rotate PDF pages, reorder PDF pages, image to PDF converter, watermark PDF free, add page numbers to PDF
+reorder PDF pages, merge PDF no upload, split PDF online, rotate PDF pages, image to PDF converter, watermark PDF free, add page numbers to PDF
