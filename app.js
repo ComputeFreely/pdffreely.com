@@ -24,10 +24,9 @@
   var libreOfficeReady = null;
   var libreOfficeModuleReady = null;
   var libreOfficeFontsReady = null;
-  var retainedPresentationBytes = null;
   var libreOfficeUsesFonts = true;
   var libreOfficeLastProgress = null;
-  var assetVersion = "2026-07-02-5";
+  var assetVersion = "2026-07-02-6";
   var libreOfficeRuntimeBaseUrl = "https://data.pdffreely.com/libreoffice/2.6.0/";
   var libreOfficeFontBundleUrl = libreOfficeRuntimeBaseUrl + "fonts/freely-fonts.zip";
   var libreOfficeFontTimeoutMs = 30000;
@@ -44,7 +43,6 @@
     "rtf", "txt", "html", "htm", "csv", "epub"
   ]);
 
-  var embeddedFontStripFormats = new Set(["pptx"]);
   var slowDocumentLoadFormats = new Set(["ppt", "pptx", "odp"]);
 
   var pageSizes = {
@@ -214,47 +212,28 @@
   }
 
   async function convertDocumentFileToPdf(file) {
-    var format = getExtension(file.name);
     var bytes = new Uint8Array(await file.arrayBuffer());
-    var inputBytes = bytes;
-
-    if (embeddedFontStripFormats.has(format)) {
-      setStatus("Preparing " + file.name, "warn");
-      retainedPresentationBytes = await stripEmbeddedPresentationFonts(bytes);
-      inputBytes = await cloneBytesThroughBlob(retainedPresentationBytes);
-      await waitForBrowserSettled();
-    }
-
-    try {
-      return await convertWithLibreOffice(inputBytes, file.name);
-    } finally {
-      retainedPresentationBytes = null;
-    }
+    return await convertWithLibreOffice(bytes, file.name);
   }
 
   async function convertWithLibreOffice(inputBytes, filename) {
-    await resetLibreOffice();
     try {
+      return await convertWithLibreOfficeAttempt(inputBytes, filename, true);
+    } catch (error) {
+      if (!shouldRetryLibreOfficeConversion(error)) {
+        throw error;
+      }
+
+      setStatus("Document converter reset; retrying", "warn");
+      await resetLibreOffice();
       try {
         return await convertWithLibreOfficeAttempt(inputBytes, filename, true);
-      } catch (error) {
-        if (!shouldRetryLibreOfficeConversion(error)) {
-          throw error;
+      } catch (retryError) {
+        if (shouldRetryLibreOfficeConversion(retryError)) {
+          await resetLibreOffice();
         }
-
-        setStatus("Document converter reset; retrying with fallback fonts", "warn");
-        await resetLibreOffice();
-        try {
-          return await convertWithLibreOfficeAttempt(inputBytes, filename, false);
-        } catch (retryError) {
-          if (shouldRetryLibreOfficeConversion(retryError)) {
-            await resetLibreOffice();
-          }
-          throw retryError;
-        }
+        throw retryError;
       }
-    } finally {
-      await resetLibreOffice();
     }
   }
 
@@ -263,9 +242,14 @@
     setStatus("Converting " + filename, "warn");
     var timeoutMs = getLibreOfficeConversionTimeoutMs(inputBytes, filename);
     var stopHeartbeat = startLibreOfficeConversionHeartbeat(timeoutMs);
+    var options = { outputFormat: "pdf" };
+    var inputFormat = getExtension(filename);
+    if (inputFormat) {
+      options.inputFormat = inputFormat;
+    }
     try {
       var result = await withTimeout(
-        libreOfficeConverter.convert(inputBytes, { outputFormat: "pdf" }, filename),
+        libreOfficeConverter.convert(inputBytes, options, filename),
         timeoutMs,
         "Document conversion timed out while LibreOffice was loading the file."
       );
@@ -445,66 +429,6 @@
     }
     return fonts;
   }
-
-  async function stripEmbeddedPresentationFonts(bytes) {
-    if (!window.JSZip) {
-      return bytes;
-    }
-
-    var zip = await window.JSZip.loadAsync(bytes);
-    var changed = false;
-
-    Object.keys(zip.files).forEach(function (name) {
-      if (/^ppt\/fonts\//i.test(name)) {
-        zip.remove(name);
-        changed = true;
-      }
-    });
-
-    var presentationFile = zip.file("ppt/presentation.xml");
-    if (presentationFile) {
-      var presentationXml = await presentationFile.async("string");
-      var strippedPresentationXml = presentationXml
-        .replace(/\s+embedTrueTypeFonts="[^"]*"/g, "")
-        .replace(/\s+saveSubsetFonts="[^"]*"/g, "")
-        .replace(/<(?:[A-Za-z_][\w.-]*:)?embeddedFontLst\b[\s\S]*?<\/(?:[A-Za-z_][\w.-]*:)?embeddedFontLst>/g, "");
-      if (strippedPresentationXml !== presentationXml) {
-        zip.file("ppt/presentation.xml", strippedPresentationXml);
-        changed = true;
-      }
-    }
-
-    var relsFile = zip.file("ppt/_rels/presentation.xml.rels");
-    if (relsFile) {
-      var relsXml = await relsFile.async("string");
-      var strippedRelsXml = relsXml.replace(/<Relationship\b(?=[^>]*Type="http:\/\/schemas\.openxmlformats\.org\/officeDocument\/2006\/relationships\/font")[^>]*\/>/g, "");
-      if (strippedRelsXml !== relsXml) {
-        zip.file("ppt/_rels/presentation.xml.rels", strippedRelsXml);
-        changed = true;
-      }
-    }
-
-    if (!changed) {
-      return bytes;
-    }
-
-    return zip.generateAsync({
-      type: "uint8array",
-      compression: "DEFLATE",
-      compressionOptions: { level: 6 }
-    });
-  }
-
-  function waitForBrowserSettled() {
-    return new Promise(function (resolve) {
-      window.setTimeout(resolve, 500);
-    });
-  }
-
-  async function cloneBytesThroughBlob(bytes) {
-    return new Uint8Array(await new Blob([bytes]).arrayBuffer());
-  }
-
   function isSupportedInputFile(file) {
     return isPdfFile(file) || isImageFile(file) || isDocumentFile(file);
   }
