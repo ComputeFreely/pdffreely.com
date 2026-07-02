@@ -26,7 +26,7 @@
   var libreOfficeFontsReady = null;
   var retainedPresentationBytes = null;
   var libreOfficeUsesFonts = true;
-  var assetVersion = "2026-07-02-3";
+  var assetVersion = "2026-07-02-4";
   var libreOfficeRuntimeBaseUrl = "https://data.pdffreely.com/libreoffice/2.6.0/";
   var libreOfficeFontBundleUrl = libreOfficeRuntimeBaseUrl + "fonts/freely-fonts.zip";
   var libreOfficeFontTimeoutMs = 30000;
@@ -109,6 +109,11 @@
   }
 
   async function handleFiles(fileList) {
+    if (state.busy) {
+      setStatus("Finish the current file before adding more", "warn");
+      return;
+    }
+
     var files = Array.prototype.slice.call(fileList || []);
     var usableFiles = files.filter(isSupportedInputFile);
 
@@ -223,23 +228,28 @@
   }
 
   async function convertWithLibreOffice(inputBytes, filename) {
+    await resetLibreOffice();
     try {
-      return await convertWithLibreOfficeAttempt(inputBytes, filename, true);
-    } catch (error) {
-      if (!shouldRetryLibreOfficeConversion(error)) {
-        throw error;
-      }
-
-      setStatus("Document converter reset; retrying with fallback fonts", "warn");
-      await resetLibreOffice();
       try {
-        return await convertWithLibreOfficeAttempt(inputBytes, filename, false);
-      } catch (retryError) {
-        if (shouldRetryLibreOfficeConversion(retryError)) {
-          await resetLibreOffice();
+        return await convertWithLibreOfficeAttempt(inputBytes, filename, true);
+      } catch (error) {
+        if (!shouldRetryLibreOfficeConversion(error)) {
+          throw error;
         }
-        throw retryError;
+
+        setStatus("Document converter reset; retrying with fallback fonts", "warn");
+        await resetLibreOffice();
+        try {
+          return await convertWithLibreOfficeAttempt(inputBytes, filename, false);
+        } catch (retryError) {
+          if (shouldRetryLibreOfficeConversion(retryError)) {
+            await resetLibreOffice();
+          }
+          throw retryError;
+        }
       }
+    } finally {
+      await resetLibreOffice();
     }
   }
 
@@ -328,14 +338,6 @@
 
   async function destroyLibreOfficeConverter(converter) {
     var worker = converter && converter.worker;
-    try {
-      if (converter && typeof converter.destroy === "function") {
-        await withTimeout(converter.destroy(), 3000, "Timed out while stopping converter.");
-      }
-    } catch (error) {
-      console.warn("Could not stop LibreOffice converter cleanly", error);
-    }
-
     try {
       if (worker && typeof worker.terminate === "function") {
         worker.terminate();
