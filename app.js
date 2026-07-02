@@ -25,9 +25,14 @@
   var libreOfficeModuleReady = null;
   var libreOfficeFontsReady = null;
   var retainedPresentationBytes = null;
+  var libreOfficeUsesFonts = true;
   var libreOfficeRuntimeBaseUrl = "https://data.pdffreely.com/libreoffice/2.6.0/";
   var libreOfficeFontBundleUrl = libreOfficeRuntimeBaseUrl + "fonts/freely-fonts.zip";
   var libreOfficeFontTimeoutMs = 30000;
+  var libreOfficeInitializeTimeoutMs = 120000;
+  var libreOfficeConvertBaseTimeoutMs = 120000;
+  var libreOfficeConvertPerMbTimeoutMs = 2000;
+  var libreOfficeConvertMaxTimeoutMs = 480000;
 
   var documentFormats = new Set([
     "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp",
@@ -210,18 +215,53 @@
     }
 
     try {
-      await ensureLibreOffice();
-      setStatus("Converting " + file.name, "warn");
-      var result = await libreOfficeConverter.convert(inputBytes, { outputFormat: "pdf" }, file.name);
-      return toUint8Array(result.data);
+      return await convertWithLibreOffice(inputBytes, file.name);
     } finally {
       retainedPresentationBytes = null;
     }
   }
 
-  async function ensureLibreOffice() {
-    if (libreOfficeReady) {
+  async function convertWithLibreOffice(inputBytes, filename) {
+    try {
+      return await convertWithLibreOfficeAttempt(inputBytes, filename, true);
+    } catch (error) {
+      if (!isTimeoutError(error)) {
+        throw error;
+      }
+
+      setStatus("Document converter stalled; retrying with fallback fonts", "warn");
+      await resetLibreOffice();
+      try {
+        return await convertWithLibreOfficeAttempt(inputBytes, filename, false);
+      } catch (retryError) {
+        if (isTimeoutError(retryError)) {
+          await resetLibreOffice();
+        }
+        throw retryError;
+      }
+    }
+  }
+
+  async function convertWithLibreOfficeAttempt(inputBytes, filename, useFonts) {
+    await ensureLibreOffice(useFonts);
+    setStatus("Converting " + filename, "warn");
+    var result = await withTimeout(
+      libreOfficeConverter.convert(inputBytes, { outputFormat: "pdf" }, filename),
+      getLibreOfficeConversionTimeoutMs(inputBytes),
+      "Document conversion timed out while LibreOffice was loading the file."
+    );
+    return toUint8Array(result.data);
+  }
+
+  async function ensureLibreOffice(useFonts) {
+    useFonts = useFonts !== false;
+
+    if (libreOfficeReady && libreOfficeUsesFonts === useFonts) {
       return libreOfficeReady;
+    }
+
+    if (libreOfficeReady && libreOfficeUsesFonts !== useFonts) {
+      await resetLibreOffice();
     }
 
     if (!window.crossOriginIsolated || !window.SharedArrayBuffer) {
@@ -229,14 +269,16 @@
     }
 
     setStatus("Loading document converter", "warn");
-    libreOfficeReady = initializeLibreOffice().catch(function (error) {
+    libreOfficeUsesFonts = useFonts;
+    libreOfficeReady = initializeLibreOffice(useFonts).catch(function (error) {
       libreOfficeReady = null;
+      libreOfficeConverter = null;
       throw error;
     });
     return libreOfficeReady;
   }
 
-  async function initializeLibreOffice() {
+  async function initializeLibreOffice(useFonts) {
     var module = await loadLibreOfficeModule();
     var converterOptions = {
       sofficeJs: "/assets/vendor/libreoffice/wasm/soffice.js",
@@ -251,15 +293,61 @@
       }
     };
 
-    setStatus("Loading document fonts", "warn");
-    var fonts = await ensureLibreOfficeFonts();
-    if (fonts.length) {
-      converterOptions.fonts = fonts;
+    if (useFonts) {
+      setStatus("Loading document fonts", "warn");
+      var fonts = await ensureLibreOfficeFonts();
+      if (fonts.length) {
+        converterOptions.fonts = fonts;
+      }
     }
 
     libreOfficeConverter = new module.WorkerBrowserConverter(converterOptions);
-    await libreOfficeConverter.initialize();
+    try {
+      await withTimeout(
+        libreOfficeConverter.initialize(),
+        libreOfficeInitializeTimeoutMs,
+        "Document converter timed out while starting."
+      );
+    } catch (error) {
+      await destroyLibreOfficeConverter(libreOfficeConverter);
+      libreOfficeConverter = null;
+      throw error;
+    }
     setStatus("Document converter ready");
+  }
+
+  async function resetLibreOffice() {
+    var converter = libreOfficeConverter;
+    libreOfficeReady = null;
+    libreOfficeConverter = null;
+    if (converter) {
+      await destroyLibreOfficeConverter(converter);
+    }
+  }
+
+  async function destroyLibreOfficeConverter(converter) {
+    var worker = converter && converter.worker;
+    try {
+      if (converter && typeof converter.destroy === "function") {
+        await withTimeout(converter.destroy(), 3000, "Timed out while stopping converter.");
+      }
+    } catch (error) {
+      console.warn("Could not stop LibreOffice converter cleanly", error);
+    }
+
+    try {
+      if (worker && typeof worker.terminate === "function") {
+        worker.terminate();
+      }
+    } catch (error) {
+      console.warn("Could not terminate LibreOffice worker", error);
+    }
+  }
+
+  function getLibreOfficeConversionTimeoutMs(inputBytes) {
+    var sizeMb = Math.ceil((inputBytes && inputBytes.length ? inputBytes.length : 0) / 1048576);
+    var timeout = libreOfficeConvertBaseTimeoutMs + sizeMb * libreOfficeConvertPerMbTimeoutMs;
+    return Math.min(libreOfficeConvertMaxTimeoutMs, timeout);
   }
 
   function loadLibreOfficeModule() {
@@ -1193,7 +1281,9 @@
   function withTimeout(promise, timeoutMs, message) {
     return new Promise(function (resolve, reject) {
       var timeout = window.setTimeout(function () {
-        reject(new Error(message));
+        var error = new Error(message);
+        error.name = "TimeoutError";
+        reject(error);
       }, timeoutMs);
 
       promise.then(function (value) {
@@ -1204,6 +1294,10 @@
         reject(error);
       });
     });
+  }
+
+  function isTimeoutError(error) {
+    return error && error.name === "TimeoutError";
   }
 
   function downloadBlob(blob, filename) {
