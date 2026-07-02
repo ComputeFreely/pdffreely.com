@@ -26,7 +26,7 @@
   var libreOfficeFontsReady = null;
   var libreOfficeUsesFonts = true;
   var libreOfficeLastProgress = null;
-  var assetVersion = "2026-07-02-6";
+  var assetVersion = "2026-07-02-7";
   var libreOfficeRuntimeBaseUrl = "https://data.pdffreely.com/libreoffice/2.6.0/";
   var libreOfficeFontBundleUrl = libreOfficeRuntimeBaseUrl + "fonts/freely-fonts.zip";
   var libreOfficeFontTimeoutMs = 30000;
@@ -37,6 +37,7 @@
   var libreOfficePresentationConvertPerMbTimeoutMs = 8000;
   var libreOfficeConvertMaxTimeoutMs = 480000;
   var libreOfficePresentationConvertMaxTimeoutMs = 900000;
+  var libreOfficeDocumentLoadStallMs = 30000;
 
   var documentFormats = new Set([
     "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp",
@@ -248,7 +249,7 @@
       options.inputFormat = inputFormat;
     }
     try {
-      var result = await withTimeout(
+      var result = await withLibreOfficeConversionTimeout(
         libreOfficeConverter.convert(inputBytes, options, filename),
         timeoutMs,
         "Document conversion timed out while LibreOffice was loading the file."
@@ -1251,9 +1252,7 @@
   function withTimeout(promise, timeoutMs, message) {
     return new Promise(function (resolve, reject) {
       var timeout = window.setTimeout(function () {
-        var error = new Error(message);
-        error.name = "TimeoutError";
-        reject(error);
+        reject(createTimeoutError(message));
       }, timeoutMs);
 
       promise.then(function (value) {
@@ -1264,6 +1263,67 @@
         reject(error);
       });
     });
+  }
+
+  function withLibreOfficeConversionTimeout(promise, timeoutMs, message) {
+    return new Promise(function (resolve, reject) {
+      var settled = false;
+      var loadingStartedAt = 0;
+      var timeout = window.setTimeout(function () {
+        fail(message);
+      }, timeoutMs);
+      var stallCheck = window.setInterval(function () {
+        if (!libreOfficeLastProgress || !/loading document/i.test(libreOfficeLastProgress.message)) {
+          loadingStartedAt = 0;
+          return;
+        }
+
+        if (!loadingStartedAt) {
+          loadingStartedAt = Date.now();
+          return;
+        }
+
+        if (Date.now() - loadingStartedAt >= libreOfficeDocumentLoadStallMs) {
+          fail("Document conversion stalled while LibreOffice was loading the file.");
+        }
+      }, 1000);
+
+      function cleanup() {
+        window.clearTimeout(timeout);
+        window.clearInterval(stallCheck);
+      }
+
+      function fail(errorMessage) {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        cleanup();
+        reject(createTimeoutError(errorMessage));
+      }
+
+      promise.then(function (value) {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        cleanup();
+        resolve(value);
+      }, function (error) {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        cleanup();
+        reject(error);
+      });
+    });
+  }
+
+  function createTimeoutError(message) {
+    var error = new Error(message);
+    error.name = "TimeoutError";
+    return error;
   }
 
   function isTimeoutError(error) {
