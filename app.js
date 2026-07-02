@@ -24,9 +24,10 @@
   var libreOfficeReady = null;
   var libreOfficeModuleReady = null;
   var libreOfficeFontsReady = null;
+  var libreOfficePresentationWarmupReady = null;
   var libreOfficeUsesFonts = true;
   var libreOfficeLastProgress = null;
-  var assetVersion = "2026-07-02-9";
+  var assetVersion = "2026-07-02-10";
   var libreOfficeRuntimeBaseUrl = "https://data.pdffreely.com/libreoffice/2.6.0/";
   var libreOfficeFontBundleUrl = libreOfficeRuntimeBaseUrl + "fonts/freely-fonts.zip";
   var libreOfficeFontTimeoutMs = 30000;
@@ -37,6 +38,7 @@
   var libreOfficePresentationConvertPerMbTimeoutMs = 8000;
   var libreOfficeConvertMaxTimeoutMs = 480000;
   var libreOfficePresentationConvertMaxTimeoutMs = 900000;
+  var libreOfficePresentationWarmupTimeoutMs = 60000;
 
   var documentFormats = new Set([
     "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp",
@@ -238,12 +240,17 @@
   }
 
   async function convertWithLibreOfficeAttempt(inputBytes, filename, useFonts) {
+    var inputFormat = getExtension(filename);
     await ensureLibreOffice(useFonts);
+
+    if (slowDocumentLoadFormats.has(inputFormat)) {
+      await ensureLibreOfficePresentationWarmup();
+    }
+
     setStatus("Converting " + filename, "warn");
     var timeoutMs = getLibreOfficeConversionTimeoutMs(inputBytes, filename);
     var stopHeartbeat = startLibreOfficeConversionHeartbeat(timeoutMs);
     var options = { outputFormat: "pdf" };
-    var inputFormat = getExtension(filename);
     if (inputFormat) {
       options.inputFormat = inputFormat;
     }
@@ -328,11 +335,32 @@
     setStatus("Document converter ready");
   }
 
+  function ensureLibreOfficePresentationWarmup() {
+    if (!libreOfficePresentationWarmupReady) {
+      setStatus("Preparing presentation converter", "warn");
+      libreOfficePresentationWarmupReady = withTimeout(
+        libreOfficeConverter.convert(createLibreOfficeWarmupDocxBytes(), {
+          outputFormat: "pdf",
+          inputFormat: "docx"
+        }, "pdffreely-warmup.docx"),
+        libreOfficePresentationWarmupTimeoutMs,
+        "Document converter timed out while preparing presentations."
+      ).then(function () {
+        return true;
+      }).catch(function (error) {
+        libreOfficePresentationWarmupReady = null;
+        throw error;
+      });
+    }
+    return libreOfficePresentationWarmupReady;
+  }
+
   async function resetLibreOffice() {
     var converter = libreOfficeConverter;
     libreOfficeReady = null;
     libreOfficeConverter = null;
     libreOfficeLastProgress = null;
+    libreOfficePresentationWarmupReady = null;
     if (converter) {
       await destroyLibreOfficeConverter(converter);
     }
@@ -402,6 +430,24 @@
       });
     }
     return libreOfficeFontsReady;
+  }
+
+  function createLibreOfficeWarmupDocxBytes() {
+    var encoder = new TextEncoder();
+    return createZip([
+      {
+        name: "[Content_Types].xml",
+        data: encoder.encode('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>')
+      },
+      {
+        name: "_rels/.rels",
+        data: encoder.encode('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>')
+      },
+      {
+        name: "word/document.xml",
+        data: encoder.encode('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>PDF Freely</w:t></w:r></w:p><w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>')
+      }
+    ]);
   }
   function isSupportedInputFile(file) {
     return isPdfFile(file) || isImageFile(file) || isDocumentFile(file);
