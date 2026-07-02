@@ -26,6 +26,7 @@
   var libreOfficeFontsReady = null;
   var retainedPresentationBytes = null;
   var libreOfficeUsesFonts = true;
+  var assetVersion = "2026-07-02-3";
   var libreOfficeRuntimeBaseUrl = "https://data.pdffreely.com/libreoffice/2.6.0/";
   var libreOfficeFontBundleUrl = libreOfficeRuntimeBaseUrl + "fonts/freely-fonts.zip";
   var libreOfficeFontTimeoutMs = 30000;
@@ -54,7 +55,7 @@
       return;
     }
 
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc = "assets/vendor/pdf.worker.min.js";
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = versionedAssetUrl("assets/vendor/pdf.worker.min.js");
     bindEvents();
     syncControls();
     renderPages();
@@ -225,16 +226,16 @@
     try {
       return await convertWithLibreOfficeAttempt(inputBytes, filename, true);
     } catch (error) {
-      if (!isTimeoutError(error)) {
+      if (!shouldRetryLibreOfficeConversion(error)) {
         throw error;
       }
 
-      setStatus("Document converter stalled; retrying with fallback fonts", "warn");
+      setStatus("Document converter reset; retrying with fallback fonts", "warn");
       await resetLibreOffice();
       try {
         return await convertWithLibreOfficeAttempt(inputBytes, filename, false);
       } catch (retryError) {
-        if (isTimeoutError(retryError)) {
+        if (shouldRetryLibreOfficeConversion(retryError)) {
           await resetLibreOffice();
         }
         throw retryError;
@@ -281,11 +282,11 @@
   async function initializeLibreOffice(useFonts) {
     var module = await loadLibreOfficeModule();
     var converterOptions = {
-      sofficeJs: "/assets/vendor/libreoffice/wasm/soffice.js",
+      sofficeJs: versionedAssetUrl("/assets/vendor/libreoffice/wasm/soffice.js"),
       sofficeWasm: libreOfficeRuntimeBaseUrl + "wasm/soffice.wasm",
       sofficeData: libreOfficeRuntimeBaseUrl + "wasm/soffice.data",
-      sofficeWorkerJs: "/assets/vendor/libreoffice/wasm/soffice.worker.js",
-      browserWorkerJs: "/assets/vendor/libreoffice/dist/browser.worker.global.js",
+      sofficeWorkerJs: versionedAssetUrl("/assets/vendor/libreoffice/wasm/soffice.worker.js"),
+      browserWorkerJs: versionedAssetUrl("/assets/vendor/libreoffice/dist/browser.worker.global.js"),
       onProgress: function (info) {
         var percent = Number.isFinite(info && info.percent) ? Math.round(info.percent) + "% " : "";
         var message = info && info.message ? info.message : "Working";
@@ -352,7 +353,7 @@
 
   function loadLibreOfficeModule() {
     if (!libreOfficeModuleReady) {
-      libreOfficeModuleReady = import("/assets/vendor/libreoffice/dist/browser.js");
+      libreOfficeModuleReady = import(versionedAssetUrl("/assets/vendor/libreoffice/dist/browser.js"));
     }
     return libreOfficeModuleReady;
   }
@@ -1298,6 +1299,19 @@
 
   function isTimeoutError(error) {
     return error && error.name === "TimeoutError";
+  }
+
+  function shouldRetryLibreOfficeConversion(error) {
+    return isTimeoutError(error) || isTransientLibreOfficeError(error);
+  }
+
+  function isTransientLibreOfficeError(error) {
+    var message = getErrorMessage(error).toLowerCase();
+    return /call_indirect|signature|webassembly|runtimeerror|wasm|memory access|table index|worker|not initialized/.test(message);
+  }
+
+  function versionedAssetUrl(url) {
+    return url + (url.indexOf("?") === -1 ? "?" : "&") + "v=" + assetVersion;
   }
 
   function downloadBlob(blob, filename) {
