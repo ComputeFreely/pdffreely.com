@@ -26,7 +26,7 @@
   var libreOfficeFontsReady = null;
   var libreOfficeUsesFonts = true;
   var libreOfficeLastProgress = null;
-  var assetVersion = "2026-07-02-7";
+  var assetVersion = "2026-07-02-9";
   var libreOfficeRuntimeBaseUrl = "https://data.pdffreely.com/libreoffice/2.6.0/";
   var libreOfficeFontBundleUrl = libreOfficeRuntimeBaseUrl + "fonts/freely-fonts.zip";
   var libreOfficeFontTimeoutMs = 30000;
@@ -37,7 +37,6 @@
   var libreOfficePresentationConvertPerMbTimeoutMs = 8000;
   var libreOfficeConvertMaxTimeoutMs = 480000;
   var libreOfficePresentationConvertMaxTimeoutMs = 900000;
-  var libreOfficeDocumentLoadStallMs = 30000;
 
   var documentFormats = new Set([
     "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp",
@@ -249,10 +248,10 @@
       options.inputFormat = inputFormat;
     }
     try {
-      var result = await withLibreOfficeConversionTimeout(
+      var result = await withTimeout(
         libreOfficeConverter.convert(inputBytes, options, filename),
         timeoutMs,
-        "Document conversion timed out while LibreOffice was loading the file."
+        "Document conversion timed out."
       );
       return toUint8Array(result.data);
     } finally {
@@ -293,6 +292,7 @@
       sofficeData: libreOfficeRuntimeBaseUrl + "wasm/soffice.data",
       sofficeWorkerJs: versionedAssetUrl("/assets/vendor/libreoffice/wasm/soffice.worker.js"),
       browserWorkerJs: versionedAssetUrl("/assets/vendor/libreoffice/dist/browser.worker.global.js"),
+      verbose: false,
       onProgress: function (info) {
         libreOfficeLastProgress = {
           message: info && info.message ? info.message : "",
@@ -307,7 +307,7 @@
 
     if (useFonts) {
       setStatus("Loading document fonts", "warn");
-      var fonts = await ensureLibreOfficeFonts();
+      var fonts = await ensureLibreOfficeFonts(module);
       if (fonts.length) {
         converterOptions.fonts = fonts;
       }
@@ -339,13 +339,12 @@
   }
 
   async function destroyLibreOfficeConverter(converter) {
-    var worker = converter && converter.worker;
     try {
-      if (worker && typeof worker.terminate === "function") {
-        worker.terminate();
+      if (converter && typeof converter.destroy === "function") {
+        await converter.destroy();
       }
     } catch (error) {
-      console.warn("Could not terminate LibreOffice worker", error);
+      console.warn("Could not destroy LibreOffice converter", error);
     }
   }
 
@@ -388,9 +387,9 @@
     return libreOfficeModuleReady;
   }
 
-  function ensureLibreOfficeFonts() {
+  function ensureLibreOfficeFonts(module) {
     if (!libreOfficeFontsReady) {
-      var fontLoad = loadFontsFromZip(libreOfficeFontBundleUrl);
+      var fontLoad = module.loadFontsFromUrl(libreOfficeFontBundleUrl);
       fontLoad.catch(function () {});
       libreOfficeFontsReady = withTimeout(
         fontLoad,
@@ -403,32 +402,6 @@
       });
     }
     return libreOfficeFontsReady;
-  }
-
-  async function loadFontsFromZip(url) {
-    if (!window.JSZip) {
-      throw new Error("ZIP engine did not load.");
-    }
-
-    var response = await fetch(url);
-    if (!response.ok) {
-      throw new Error("Failed to fetch font bundle: " + response.status + " " + response.statusText);
-    }
-
-    var zip = await window.JSZip.loadAsync(await response.arrayBuffer());
-    var fonts = [];
-    var names = Object.keys(zip.files);
-    for (var index = 0; index < names.length; index += 1) {
-      var name = names[index];
-      var entry = zip.files[name];
-      if (!entry.dir && /\.(ttf|otf|ttc|woff2?)$/i.test(name)) {
-        fonts.push({
-          filename: getPathBasename(name),
-          data: await entry.async("uint8array")
-        });
-      }
-    }
-    return fonts;
   }
   function isSupportedInputFile(file) {
     return isPdfFile(file) || isImageFile(file) || isDocumentFile(file);
@@ -1265,61 +1238,6 @@
     });
   }
 
-  function withLibreOfficeConversionTimeout(promise, timeoutMs, message) {
-    return new Promise(function (resolve, reject) {
-      var settled = false;
-      var loadingStartedAt = 0;
-      var timeout = window.setTimeout(function () {
-        fail(message);
-      }, timeoutMs);
-      var stallCheck = window.setInterval(function () {
-        if (!libreOfficeLastProgress || !/loading document/i.test(libreOfficeLastProgress.message)) {
-          loadingStartedAt = 0;
-          return;
-        }
-
-        if (!loadingStartedAt) {
-          loadingStartedAt = Date.now();
-          return;
-        }
-
-        if (Date.now() - loadingStartedAt >= libreOfficeDocumentLoadStallMs) {
-          fail("Document conversion stalled while LibreOffice was loading the file.");
-        }
-      }, 1000);
-
-      function cleanup() {
-        window.clearTimeout(timeout);
-        window.clearInterval(stallCheck);
-      }
-
-      function fail(errorMessage) {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        cleanup();
-        reject(createTimeoutError(errorMessage));
-      }
-
-      promise.then(function (value) {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        cleanup();
-        resolve(value);
-      }, function (error) {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        cleanup();
-        reject(error);
-      });
-    });
-  }
-
   function createTimeoutError(message) {
     var error = new Error(message);
     error.name = "TimeoutError";
@@ -1336,7 +1254,7 @@
 
   function isTransientLibreOfficeError(error) {
     var message = getErrorMessage(error).toLowerCase();
-    return /call_indirect|signature|webassembly|runtimeerror|wasm|memory access|table index|worker|not initialized/.test(message);
+    return /call_indirect|signature|webassembly|runtimeerror|wasm|memory access|table index|worker|not initialized|drawviewshell/.test(message);
   }
 
   function versionedAssetUrl(url) {
@@ -1370,10 +1288,6 @@
       .replace(/[^a-z0-9._-]+/gi, "-")
       .replace(/^-+|-+$/g, "")
       .slice(0, 80) || "pdffreely-document";
-  }
-
-  function getPathBasename(name) {
-    return String(name || "").split("/").pop() || "font.ttf";
   }
 
   function getExtension(name) {
