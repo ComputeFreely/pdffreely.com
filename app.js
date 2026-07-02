@@ -21,31 +21,17 @@
   };
 
   var libreOfficeConverter = null;
-  var libreOfficeReady = null;
+  var libreOfficeInitializing = null;
   var libreOfficeModuleReady = null;
   var libreOfficeFontsReady = null;
-  var libreOfficePresentationWarmupReady = null;
-  var libreOfficeUsesFonts = true;
-  var libreOfficeLastProgress = null;
-  var assetVersion = "2026-07-02-10";
+  var assetVersion = "2026-07-02-12";
   var libreOfficeRuntimeBaseUrl = "https://data.pdffreely.com/libreoffice/2.6.0/";
   var libreOfficeFontBundleUrl = libreOfficeRuntimeBaseUrl + "fonts/freely-fonts.zip";
-  var libreOfficeFontTimeoutMs = 30000;
-  var libreOfficeInitializeTimeoutMs = 120000;
-  var libreOfficeConvertBaseTimeoutMs = 120000;
-  var libreOfficeConvertPerMbTimeoutMs = 2000;
-  var libreOfficePresentationConvertBaseTimeoutMs = 300000;
-  var libreOfficePresentationConvertPerMbTimeoutMs = 8000;
-  var libreOfficeConvertMaxTimeoutMs = 480000;
-  var libreOfficePresentationConvertMaxTimeoutMs = 900000;
-  var libreOfficePresentationWarmupTimeoutMs = 60000;
 
   var documentFormats = new Set([
     "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp",
     "rtf", "txt", "html", "htm", "csv", "epub"
   ]);
-
-  var slowDocumentLoadFormats = new Set(["ppt", "pptx", "odp"]);
 
   var pageSizes = {
     letter: [612, 792],
@@ -214,198 +200,58 @@
   }
 
   async function convertDocumentFileToPdf(file) {
-    var bytes = new Uint8Array(await file.arrayBuffer());
-    return await convertWithLibreOffice(bytes, file.name);
+    var converter = await getLibreOfficeConverter();
+    var inputFormat = getExtension(file.name) || "docx";
+    setStatus("Converting " + file.name, "warn");
+    var result = await converter.convertFile(file, {
+      inputFormat: inputFormat,
+      outputFormat: "pdf"
+    });
+    return result.data;
   }
 
-  async function convertWithLibreOffice(inputBytes, filename) {
-    try {
-      return await convertWithLibreOfficeAttempt(inputBytes, filename, true);
-    } catch (error) {
-      if (!shouldRetryLibreOfficeConversion(error)) {
-        throw error;
-      }
-
-      setStatus("Document converter reset; retrying", "warn");
-      await resetLibreOffice();
-      try {
-        return await convertWithLibreOfficeAttempt(inputBytes, filename, true);
-      } catch (retryError) {
-        if (shouldRetryLibreOfficeConversion(retryError)) {
-          await resetLibreOffice();
-        }
-        throw retryError;
-      }
-    }
-  }
-
-  async function convertWithLibreOfficeAttempt(inputBytes, filename, useFonts) {
-    var inputFormat = getExtension(filename);
-    await ensureLibreOffice(useFonts);
-
-    if (slowDocumentLoadFormats.has(inputFormat)) {
-      await ensureLibreOfficePresentationWarmup();
+  async function getLibreOfficeConverter() {
+    if (libreOfficeConverter && libreOfficeConverter.isReady()) {
+      return libreOfficeConverter;
     }
 
-    setStatus("Converting " + filename, "warn");
-    var timeoutMs = getLibreOfficeConversionTimeoutMs(inputBytes, filename);
-    var stopHeartbeat = startLibreOfficeConversionHeartbeat(timeoutMs);
-    var options = { outputFormat: "pdf" };
-    if (inputFormat) {
-      options.inputFormat = inputFormat;
-    }
-    try {
-      var result = await withTimeout(
-        libreOfficeConverter.convert(inputBytes, options, filename),
-        timeoutMs,
-        "Document conversion timed out."
-      );
-      return toUint8Array(result.data);
-    } finally {
-      stopHeartbeat();
-    }
-  }
-
-  async function ensureLibreOffice(useFonts) {
-    useFonts = useFonts !== false;
-
-    if (libreOfficeReady && libreOfficeUsesFonts === useFonts) {
-      return libreOfficeReady;
-    }
-
-    if (libreOfficeReady && libreOfficeUsesFonts !== useFonts) {
-      await resetLibreOffice();
+    if (libreOfficeInitializing) {
+      await libreOfficeInitializing;
+      return libreOfficeConverter;
     }
 
     if (!window.crossOriginIsolated || !window.SharedArrayBuffer) {
       throw new Error("Document conversion needs cross-origin isolation headers. Use the deployed site or the local isolated dev server.");
     }
 
-    setStatus("Loading document converter", "warn");
-    libreOfficeUsesFonts = useFonts;
-    libreOfficeReady = initializeLibreOffice(useFonts).catch(function (error) {
-      libreOfficeReady = null;
-      libreOfficeConverter = null;
-      throw error;
-    });
-    return libreOfficeReady;
+    libreOfficeInitializing = initializeLibreOfficeConverter();
+    await libreOfficeInitializing;
+    return libreOfficeConverter;
   }
 
-  async function initializeLibreOffice(useFonts) {
+  async function initializeLibreOfficeConverter() {
+    setStatus("Loading document converter", "warn");
     var module = await loadLibreOfficeModule();
-    var converterOptions = {
-      sofficeJs: versionedAssetUrl("/assets/vendor/libreoffice/wasm/soffice.js"),
+    var wasmPaths = module.createWasmPaths("/assets/vendor/libreoffice/wasm/");
+    var fonts = await loadLibreOfficeFonts(module);
+
+    libreOfficeConverter = new module.WorkerBrowserConverter({
+      sofficeJs: versionedAssetUrl(wasmPaths.sofficeJs),
       sofficeWasm: libreOfficeRuntimeBaseUrl + "wasm/soffice.wasm",
       sofficeData: libreOfficeRuntimeBaseUrl + "wasm/soffice.data",
-      sofficeWorkerJs: versionedAssetUrl("/assets/vendor/libreoffice/wasm/soffice.worker.js"),
+      sofficeWorkerJs: versionedAssetUrl(wasmPaths.sofficeWorkerJs),
       browserWorkerJs: versionedAssetUrl("/assets/vendor/libreoffice/dist/browser.worker.global.js"),
       verbose: false,
+      fonts: fonts,
       onProgress: function (info) {
-        libreOfficeLastProgress = {
-          message: info && info.message ? info.message : "",
-          phase: info && info.phase ? info.phase : "",
-          at: Date.now()
-        };
         var percent = Number.isFinite(info && info.percent) ? Math.round(info.percent) + "% " : "";
         var message = info && info.message ? info.message : "Working";
         setStatus(percent + message, "warn");
       }
-    };
+    });
 
-    if (useFonts) {
-      setStatus("Loading document fonts", "warn");
-      var fonts = await ensureLibreOfficeFonts(module);
-      if (fonts.length) {
-        converterOptions.fonts = fonts;
-      }
-    }
-
-    libreOfficeConverter = new module.WorkerBrowserConverter(converterOptions);
-    try {
-      await withTimeout(
-        libreOfficeConverter.initialize(),
-        libreOfficeInitializeTimeoutMs,
-        "Document converter timed out while starting."
-      );
-    } catch (error) {
-      await destroyLibreOfficeConverter(libreOfficeConverter);
-      libreOfficeConverter = null;
-      throw error;
-    }
+    await libreOfficeConverter.initialize();
     setStatus("Document converter ready");
-  }
-
-  function ensureLibreOfficePresentationWarmup() {
-    if (!libreOfficePresentationWarmupReady) {
-      setStatus("Preparing presentation converter", "warn");
-      libreOfficePresentationWarmupReady = withTimeout(
-        libreOfficeConverter.convert(createLibreOfficeWarmupDocxBytes(), {
-          outputFormat: "pdf",
-          inputFormat: "docx"
-        }, "pdffreely-warmup.docx"),
-        libreOfficePresentationWarmupTimeoutMs,
-        "Document converter timed out while preparing presentations."
-      ).then(function () {
-        return true;
-      }).catch(function (error) {
-        libreOfficePresentationWarmupReady = null;
-        throw error;
-      });
-    }
-    return libreOfficePresentationWarmupReady;
-  }
-
-  async function resetLibreOffice() {
-    var converter = libreOfficeConverter;
-    libreOfficeReady = null;
-    libreOfficeConverter = null;
-    libreOfficeLastProgress = null;
-    libreOfficePresentationWarmupReady = null;
-    if (converter) {
-      await destroyLibreOfficeConverter(converter);
-    }
-  }
-
-  async function destroyLibreOfficeConverter(converter) {
-    try {
-      if (converter && typeof converter.destroy === "function") {
-        await converter.destroy();
-      }
-    } catch (error) {
-      console.warn("Could not destroy LibreOffice converter", error);
-    }
-  }
-
-  function getLibreOfficeConversionTimeoutMs(inputBytes, filename) {
-    var sizeMb = Math.ceil((inputBytes && inputBytes.length ? inputBytes.length : 0) / 1048576);
-    if (slowDocumentLoadFormats.has(getExtension(filename))) {
-      var presentationTimeout = libreOfficePresentationConvertBaseTimeoutMs + sizeMb * libreOfficePresentationConvertPerMbTimeoutMs;
-      return Math.min(libreOfficePresentationConvertMaxTimeoutMs, presentationTimeout);
-    }
-    var timeout = libreOfficeConvertBaseTimeoutMs + sizeMb * libreOfficeConvertPerMbTimeoutMs;
-    return Math.min(libreOfficeConvertMaxTimeoutMs, timeout);
-  }
-
-  function startLibreOfficeConversionHeartbeat(timeoutMs) {
-    var startedAt = Date.now();
-    var lastStatusAt = 0;
-    var timer = window.setInterval(function () {
-      var elapsedMs = Date.now() - startedAt;
-      if (elapsedMs < 45000 || elapsedMs - lastStatusAt < 30000) {
-        return;
-      }
-      if (!libreOfficeLastProgress || !/loading document/i.test(libreOfficeLastProgress.message)) {
-        return;
-      }
-      lastStatusAt = elapsedMs;
-      var elapsedText = formatDuration(Math.round(elapsedMs / 1000));
-      var limitText = formatDuration(Math.round(timeoutMs / 1000));
-      setStatus("Still loading document (" + elapsedText + " / " + limitText + ")", "warn");
-    }, 5000);
-
-    return function () {
-      window.clearInterval(timer);
-    };
   }
 
   function loadLibreOfficeModule() {
@@ -415,39 +261,12 @@
     return libreOfficeModuleReady;
   }
 
-  function ensureLibreOfficeFonts(module) {
+  function loadLibreOfficeFonts(module) {
     if (!libreOfficeFontsReady) {
-      var fontLoad = module.loadFontsFromUrl(libreOfficeFontBundleUrl);
-      fontLoad.catch(function () {});
-      libreOfficeFontsReady = withTimeout(
-        fontLoad,
-        libreOfficeFontTimeoutMs,
-        "Timed out after " + Math.round(libreOfficeFontTimeoutMs / 1000) + " seconds."
-      ).catch(function (error) {
-        setStatus("Font bundle unavailable; continuing with built-in fonts", "warn");
-        console.warn("Could not load LibreOffice font bundle", error);
-        return [];
-      });
+      setStatus("Loading document fonts", "warn");
+      libreOfficeFontsReady = module.loadFontsFromUrl(libreOfficeFontBundleUrl);
     }
     return libreOfficeFontsReady;
-  }
-
-  function createLibreOfficeWarmupDocxBytes() {
-    var encoder = new TextEncoder();
-    return createZip([
-      {
-        name: "[Content_Types].xml",
-        data: encoder.encode('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>')
-      },
-      {
-        name: "_rels/.rels",
-        data: encoder.encode('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>')
-      },
-      {
-        name: "word/document.xml",
-        data: encoder.encode('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>PDF Freely</w:t></w:r></w:p><w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>')
-      }
-    ]);
   }
   function isSupportedInputFile(file) {
     return isPdfFile(file) || isImageFile(file) || isDocumentFile(file);
@@ -1268,41 +1087,6 @@
     return output;
   }
 
-  function withTimeout(promise, timeoutMs, message) {
-    return new Promise(function (resolve, reject) {
-      var timeout = window.setTimeout(function () {
-        reject(createTimeoutError(message));
-      }, timeoutMs);
-
-      promise.then(function (value) {
-        window.clearTimeout(timeout);
-        resolve(value);
-      }, function (error) {
-        window.clearTimeout(timeout);
-        reject(error);
-      });
-    });
-  }
-
-  function createTimeoutError(message) {
-    var error = new Error(message);
-    error.name = "TimeoutError";
-    return error;
-  }
-
-  function isTimeoutError(error) {
-    return error && error.name === "TimeoutError";
-  }
-
-  function shouldRetryLibreOfficeConversion(error) {
-    return isTimeoutError(error) || isTransientLibreOfficeError(error);
-  }
-
-  function isTransientLibreOfficeError(error) {
-    var message = getErrorMessage(error).toLowerCase();
-    return /call_indirect|signature|webassembly|runtimeerror|wasm|memory access|table index|worker|not initialized|drawviewshell/.test(message);
-  }
-
   function versionedAssetUrl(url) {
     return url + (url.indexOf("?") === -1 ? "?" : "&") + "v=" + assetVersion;
   }
@@ -1339,16 +1123,6 @@
   function getExtension(name) {
     var match = /\.([a-z0-9]+)$/i.exec(name || "");
     return match ? match[1].toLowerCase() : "";
-  }
-
-  function toUint8Array(value) {
-    if (value instanceof Uint8Array) {
-      return value;
-    }
-    if (value instanceof ArrayBuffer) {
-      return new Uint8Array(value);
-    }
-    return new Uint8Array(value);
   }
 
   function getSelectedPages() {
@@ -1437,16 +1211,6 @@
       unit += 1;
     }
     return (unit === 0 ? value : value.toFixed(value >= 10 ? 1 : 2)) + " " + units[unit];
-  }
-
-  function formatDuration(seconds) {
-    var totalSeconds = Math.max(0, Number(seconds) || 0);
-    var minutes = Math.floor(totalSeconds / 60);
-    var remainder = totalSeconds % 60;
-    if (!minutes) {
-      return remainder + "s";
-    }
-    return minutes + "m " + String(remainder).padStart(2, "0") + "s";
   }
 
   function formatPixels(width, height) {
