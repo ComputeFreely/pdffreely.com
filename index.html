@@ -3,19 +3,19 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Free PDF tools with no upload step. Merge, split, reorder, rotate, watermark, add page numbers, convert images to PDF, and export locally in your browser.">
+    <meta name="description" content="Free PDF tools with no upload step. Merge, split, reorder, rotate, watermark, add page numbers, convert images and documents to PDF, and export locally in your browser.">
     <meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large">
     <meta name="theme-color" content="#f5f4ee">
     <meta name="application-name" content="PDF Freely">
     <meta property="og:title" content="Free PDF Merge, Split, Rotate, Convert | PDF Freely">
-    <meta property="og:description" content="Merge, split, reorder, rotate, watermark, add page numbers, and convert images to PDF locally in your browser. Use Fill Freely for PDF forms and signatures.">
+    <meta property="og:description" content="Merge, split, reorder, rotate, watermark, add page numbers, and convert images or documents to PDF locally in your browser. Use Fill Freely for PDF forms and signatures.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://pdffreely.com/">
     <meta property="og:site_name" content="PDF Freely">
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="Free PDF Merge, Split, Rotate, Convert | PDF Freely">
-    <meta name="twitter:description" content="Browser-only PDF merge, split, rotate, watermark, page numbering, and image-to-PDF tools. Use Fill Freely for PDF forms and signatures.">
-    <title>Free PDF Merge, Split, Rotate, Convert | PDF Freely</title>
+    <meta name="twitter:description" content="Browser-only PDF merge, split, rotate, watermark, page numbering, image-to-PDF, and document-to-PDF tools. Use Fill Freely for PDF forms and signatures.">
+    <title>Free PDF Merge, Split, Rotate, Document Convert | PDF Freely</title>
     <link rel="canonical" href="https://pdffreely.com/">
     <link rel="sitemap" type="application/xml" href="/sitemap.xml">
     <link rel="alternate" type="text/plain" href="/llms.txt" title="AI-readable site summary">
@@ -37,7 +37,7 @@
             "@id": "https://pdffreely.com/#app",
             "name": "PDF Freely",
             "url": "https://pdffreely.com/",
-            "description": "A free browser PDF toolset for merging, splitting, reordering, rotating, watermarking, page numbering, metadata, and image-to-PDF conversion with no upload step.",
+            "description": "A free browser PDF toolset for merging, splitting, reordering, rotating, watermarking, page numbering, metadata, image-to-PDF conversion, and document-to-PDF conversion with no upload step.",
             "applicationCategory": "UtilitiesApplication",
             "operatingSystem": "Any modern browser",
             "browserRequirements": "Requires JavaScript in a modern browser.",
@@ -56,6 +56,7 @@
               "Split PDFs and export selected pages",
               "Reorder, rotate, duplicate, and delete pages",
               "Convert JPG, PNG, and WebP images to PDF",
+              "Convert Office, OpenDocument, text, CSV, HTML, and EPUB files to PDF",
               "Add page numbers, text stamps, and watermarks",
               "Local browser processing with no upload step"
             ]
@@ -121,6 +122,7 @@
     </script>
     <script src="assets/vendor/pdf-lib.min.js" defer></script>
     <script src="assets/vendor/pdf.min.js" defer></script>
+    <script src="assets/vendor/jszip.min.js" defer></script>
     <script src="app.js" defer></script>
   </head>
   <body>
@@ -129,14 +131,14 @@
         <img class="brand-mark" src="assets/icons/favicon.svg" alt="" width="40" height="40" aria-hidden="true">
         <span>
           <strong>PDF Freely</strong>
-          <small>Local PDF page tools</small>
+          <small>Local PDF and document tools</small>
         </span>
       </a>
       <div class="topbar-actions pdf-topbar-actions">
         <nav class="tool-switcher" aria-label="PDF Freely tools">
           <a class="tool-switcher-link active" href="/" aria-current="page">
             <strong>Organize PDF</strong>
-            <span>Merge, split, rotate</span>
+            <span>Merge, convert, rotate</span>
           </a>
           <a class="tool-switcher-link" href="https://fillfreely.com/">
             <strong>Fill &amp; Sign</strong>
@@ -154,10 +156,10 @@
         </div>
 
         <div class="drop-zone" id="dropZone">
-          <input id="fileInput" class="file-input" type="file" accept="application/pdf,image/png,image/jpeg,image/webp" multiple>
+          <input id="fileInput" class="file-input" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.rtf,.txt,.html,.htm,.csv,.epub,application/pdf,image/png,image/jpeg,image/webp" multiple>
           <label class="drop-label" for="fileInput">
             <span class="drop-icon upload-icon" aria-hidden="true"></span>
-            <span class="drop-title">Choose or drop PDFs and images</span>
+            <span class="drop-title">Choose or drop PDFs, images, and documents</span>
           </label>
         </div>
 
@@ -412,6 +414,7 @@
           <ul class="limits-list">
             <li>Encrypted or password-protected PDFs cannot be edited without the password.</li>
             <li>Existing PDF images are preserved, not recompressed. Image input quality is adjustable.</li>
+            <li>Document files convert locally with LibreOffice when needed.</li>
             <li>Very large files depend on your browser memory, not a server queue.</li>
             <li>Redaction is not included because fake redaction is worse than no redaction.</li>
           </ul>
@@ -422,20 +425,21 @@
     <section class="discovery-section" aria-labelledby="pdfDiscoveryTitle">
       <div class="discovery-content">
         <p class="eyebrow">PDF tools</p>
-        <h2 id="pdfDiscoveryTitle">Merge, split, rotate, and reorder PDFs locally.</h2>
-        <p class="discovery-lede">PDF Freely is for document assembly and page-level PDF work: merge PDFs, split PDFs, reorder pages, rotate pages, delete or duplicate pages, convert images to PDF, add page numbers, add text stamps, and add watermarks. Use <a href="https://fillfreely.com/">Fill Freely</a> when you need PDF form fields, text marks, checkmarks, dates, initials, or visual signatures.</p>
+        <h2 id="pdfDiscoveryTitle">Merge, split, rotate, reorder, and convert PDFs locally.</h2>
+        <p class="discovery-lede">PDF Freely is for document assembly and page-level PDF work: merge PDFs, split PDFs, reorder pages, rotate pages, delete or duplicate pages, convert images and documents to PDF, add page numbers, add text stamps, and add watermarks. Use <a href="https://fillfreely.com/">Fill Freely</a> when you need PDF form fields, text marks, checkmarks, dates, initials, or visual signatures.</p>
         <ul class="search-terms" aria-label="Common PDF Freely searches">
           <li>reorder PDF pages</li>
           <li>merge PDF no upload</li>
           <li>split PDF online</li>
           <li>rotate PDF pages</li>
           <li>image to PDF converter</li>
+          <li>document to PDF converter</li>
           <li>watermark PDF free</li>
         </ul>
         <div class="discovery-grid" aria-label="PDF Freely capabilities">
           <article>
             <h3>Merge and reorder</h3>
-            <p>Add PDFs and images, then reorder, duplicate, rotate, delete, select, and export pages without sending the source files to a server.</p>
+            <p>Add PDFs, images, and documents, then reorder, duplicate, rotate, delete, select, and export pages without sending the source files to a server.</p>
           </article>
           <article>
             <h3>Export flexible outputs</h3>

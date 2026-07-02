@@ -1,6 +1,6 @@
 # PDF Freely
 
-PDF Freely is a free local PDF toolset for browser-side document assembly and page-level PDF tasks. It merges, splits, reorders, rotates, stamps, watermarks, and converts images to PDF locally with no upload step. For PDF form filling and visual signatures, use Fill Freely.
+PDF Freely is a free local PDF toolset for browser-side document assembly and page-level PDF tasks. It merges, splits, reorders, rotates, stamps, watermarks, and converts images or documents to PDF locally with no upload step. For PDF form filling and visual signatures, use Fill Freely.
 
 ## Primary URL
 
@@ -12,6 +12,7 @@ https://pdffreely.com/
 - Split PDFs and export selected pages or a split ZIP.
 - Reorder, rotate, duplicate, delete, and select pages.
 - Convert JPG, PNG, and WebP images to PDF pages.
+- Convert Office, OpenDocument, text, CSV, HTML, and EPUB files to PDF with browser-side LibreOffice WASM.
 - Add page numbers, text stamps, watermarks, title metadata, and author metadata.
 - Link to Fill Freely for PDF form filling, text marks, checkmarks, dates, initials, and visual signatures.
 - Run locally in the browser with no account, watermark, upload step, or download gate.
@@ -20,9 +21,10 @@ https://pdffreely.com/
 
 - Encrypted PDFs cannot be edited without the password.
 - Existing embedded images are preserved rather than recompressed.
-- Large PDFs are limited by browser memory.
+- Large PDFs and document conversions are limited by browser memory.
+- LibreOffice and the global font bundle are downloaded only when document conversion is needed.
 - Redaction is intentionally not included because visual coverups can leave underlying content extractable.
 
 ## Useful search topics
 
-reorder PDF pages, merge PDF no upload, split PDF online, rotate PDF pages, image to PDF converter, watermark PDF free, add page numbers to PDF
+reorder PDF pages, merge PDF no upload, split PDF online, rotate PDF pages, image to PDF converter, document to PDF converter, Word to PDF, PowerPoint to PDF, Excel to PDF, watermark PDF free, add page numbers to PDF

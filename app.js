@@ -20,6 +20,22 @@
     busy: false
   };
 
+  var libreOfficeConverter = null;
+  var libreOfficeReady = null;
+  var libreOfficeModuleReady = null;
+  var libreOfficeFontsReady = null;
+  var retainedPresentationBytes = null;
+  var libreOfficeRuntimeBaseUrl = "https://data.pdffreely.com/libreoffice/2.6.0/";
+  var libreOfficeFontBundleUrl = libreOfficeRuntimeBaseUrl + "fonts/freely-fonts.zip";
+  var libreOfficeFontTimeoutMs = 30000;
+
+  var documentFormats = new Set([
+    "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp",
+    "rtf", "txt", "html", "htm", "csv", "epub"
+  ]);
+
+  var embeddedFontStripFormats = new Set(["pptx"]);
+
   var pageSizes = {
     letter: [612, 792],
     a4: [595.28, 841.89]
@@ -88,27 +104,29 @@
 
   async function handleFiles(fileList) {
     var files = Array.prototype.slice.call(fileList || []);
-    var usableFiles = files.filter(function (file) {
-      return file.type === "application/pdf" || /^image\/(png|jpeg|webp)$/.test(file.type) || /\.pdf$/i.test(file.name);
-    });
+    var usableFiles = files.filter(isSupportedInputFile);
 
     if (!usableFiles.length) {
-      setStatus("Use PDF, JPG, PNG, or WebP files", "warn");
+      setStatus("Use PDF, image, Office, OpenDocument, text, CSV, HTML, or EPUB files", "warn");
       return;
     }
 
     setBusy(true, "Reading " + usableFiles.length + " file" + (usableFiles.length === 1 ? "" : "s"));
 
+    var lastError = "";
     for (var index = 0; index < usableFiles.length; index += 1) {
       var file = usableFiles[index];
       try {
-        if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
+        if (isPdfFile(file)) {
           await addPdfFile(file);
-        } else {
+        } else if (isImageFile(file)) {
           await addImageFile(file);
+        } else {
+          await addDocumentFile(file);
         }
       } catch (error) {
-        setStatus(file.name + ": " + getErrorMessage(error), "danger");
+        lastError = file.name + ": " + getErrorMessage(error);
+        setStatus(lastError, "danger");
       }
     }
 
@@ -116,13 +134,17 @@
       state.activePageId = state.pages[0].id;
     }
 
-    setBusy(false, state.pages.length ? "Ready" : "No pages");
+    setBusy(false, state.pages.length ? "Ready" : (lastError || "No pages"), lastError && !state.pages.length ? "danger" : undefined);
     renderPages();
   }
 
   async function addPdfFile(file) {
     var buffer = await file.arrayBuffer();
     var bytes = new Uint8Array(buffer);
+    await addPdfBytes(bytes, file.name, file.size);
+  }
+
+  async function addPdfBytes(bytes, name, inputSize, convertedFrom) {
     var pdfDoc = await window.PDFLib.PDFDocument.load(bytes, {
       ignoreEncryption: true,
       updateMetadata: false
@@ -133,16 +155,17 @@
     var source = {
       id: sourceId,
       type: "pdf",
-      name: file.name,
-      size: file.size,
+      name: name,
+      size: inputSize || bytes.length,
       bytes: bytes,
       pdfDoc: pdfDoc,
       pageCount: pdfDoc.getPageCount(),
-      pdfjsDoc: null
+      pdfjsDoc: null,
+      convertedFrom: convertedFrom || ""
     };
 
     state.sources[sourceId] = source;
-    state.totalInputBytes += file.size;
+    state.totalInputBytes += source.size;
 
     for (var pageIndex = 0; pageIndex < source.pageCount; pageIndex += 1) {
       state.pages.push({
@@ -167,6 +190,201 @@
     } catch (error) {
       markSourceThumbsFailed(sourceId);
     }
+  }
+
+  async function addDocumentFile(file) {
+    var pdfBytes = await convertDocumentFileToPdf(file);
+    await addPdfBytes(pdfBytes, file.name, file.size, getExtension(file.name).toUpperCase());
+  }
+
+  async function convertDocumentFileToPdf(file) {
+    var format = getExtension(file.name);
+    var bytes = new Uint8Array(await file.arrayBuffer());
+    var inputBytes = bytes;
+
+    if (embeddedFontStripFormats.has(format)) {
+      setStatus("Preparing " + file.name, "warn");
+      retainedPresentationBytes = await stripEmbeddedPresentationFonts(bytes);
+      inputBytes = await cloneBytesThroughBlob(retainedPresentationBytes);
+      await waitForBrowserSettled();
+    }
+
+    try {
+      await ensureLibreOffice();
+      setStatus("Converting " + file.name, "warn");
+      var result = await libreOfficeConverter.convert(inputBytes, { outputFormat: "pdf" }, file.name);
+      return toUint8Array(result.data);
+    } finally {
+      retainedPresentationBytes = null;
+    }
+  }
+
+  async function ensureLibreOffice() {
+    if (libreOfficeReady) {
+      return libreOfficeReady;
+    }
+
+    if (!window.crossOriginIsolated || !window.SharedArrayBuffer) {
+      throw new Error("Document conversion needs cross-origin isolation headers. Use the deployed site or the local isolated dev server.");
+    }
+
+    setStatus("Loading document converter", "warn");
+    libreOfficeReady = initializeLibreOffice().catch(function (error) {
+      libreOfficeReady = null;
+      throw error;
+    });
+    return libreOfficeReady;
+  }
+
+  async function initializeLibreOffice() {
+    var module = await loadLibreOfficeModule();
+    var converterOptions = {
+      sofficeJs: "/assets/vendor/libreoffice/wasm/soffice.js",
+      sofficeWasm: libreOfficeRuntimeBaseUrl + "wasm/soffice.wasm",
+      sofficeData: libreOfficeRuntimeBaseUrl + "wasm/soffice.data",
+      sofficeWorkerJs: "/assets/vendor/libreoffice/wasm/soffice.worker.js",
+      browserWorkerJs: "/assets/vendor/libreoffice/dist/browser.worker.global.js",
+      onProgress: function (info) {
+        var percent = Number.isFinite(info && info.percent) ? Math.round(info.percent) + "% " : "";
+        var message = info && info.message ? info.message : "Working";
+        setStatus(percent + message, "warn");
+      }
+    };
+
+    setStatus("Loading document fonts", "warn");
+    var fonts = await ensureLibreOfficeFonts();
+    if (fonts.length) {
+      converterOptions.fonts = fonts;
+    }
+
+    libreOfficeConverter = new module.WorkerBrowserConverter(converterOptions);
+    await libreOfficeConverter.initialize();
+    setStatus("Document converter ready");
+  }
+
+  function loadLibreOfficeModule() {
+    if (!libreOfficeModuleReady) {
+      libreOfficeModuleReady = import("/assets/vendor/libreoffice/dist/browser.js");
+    }
+    return libreOfficeModuleReady;
+  }
+
+  function ensureLibreOfficeFonts() {
+    if (!libreOfficeFontsReady) {
+      var fontLoad = loadFontsFromZip(libreOfficeFontBundleUrl);
+      fontLoad.catch(function () {});
+      libreOfficeFontsReady = withTimeout(
+        fontLoad,
+        libreOfficeFontTimeoutMs,
+        "Timed out after " + Math.round(libreOfficeFontTimeoutMs / 1000) + " seconds."
+      ).catch(function (error) {
+        setStatus("Font bundle unavailable; continuing with built-in fonts", "warn");
+        console.warn("Could not load LibreOffice font bundle", error);
+        return [];
+      });
+    }
+    return libreOfficeFontsReady;
+  }
+
+  async function loadFontsFromZip(url) {
+    if (!window.JSZip) {
+      throw new Error("ZIP engine did not load.");
+    }
+
+    var response = await fetch(url);
+    if (!response.ok) {
+      throw new Error("Failed to fetch font bundle: " + response.status + " " + response.statusText);
+    }
+
+    var zip = await window.JSZip.loadAsync(await response.arrayBuffer());
+    var fonts = [];
+    var names = Object.keys(zip.files);
+    for (var index = 0; index < names.length; index += 1) {
+      var name = names[index];
+      var entry = zip.files[name];
+      if (!entry.dir && /\.(ttf|otf|ttc|woff2?)$/i.test(name)) {
+        fonts.push({
+          filename: getPathBasename(name),
+          data: await entry.async("uint8array")
+        });
+      }
+    }
+    return fonts;
+  }
+
+  async function stripEmbeddedPresentationFonts(bytes) {
+    if (!window.JSZip) {
+      return bytes;
+    }
+
+    var zip = await window.JSZip.loadAsync(bytes);
+    var changed = false;
+
+    Object.keys(zip.files).forEach(function (name) {
+      if (/^ppt\/fonts\//i.test(name)) {
+        zip.remove(name);
+        changed = true;
+      }
+    });
+
+    var presentationFile = zip.file("ppt/presentation.xml");
+    if (presentationFile) {
+      var presentationXml = await presentationFile.async("string");
+      var strippedPresentationXml = presentationXml
+        .replace(/\s+embedTrueTypeFonts="[^"]*"/g, "")
+        .replace(/\s+saveSubsetFonts="[^"]*"/g, "")
+        .replace(/<(?:[A-Za-z_][\w.-]*:)?embeddedFontLst\b[\s\S]*?<\/(?:[A-Za-z_][\w.-]*:)?embeddedFontLst>/g, "");
+      if (strippedPresentationXml !== presentationXml) {
+        zip.file("ppt/presentation.xml", strippedPresentationXml);
+        changed = true;
+      }
+    }
+
+    var relsFile = zip.file("ppt/_rels/presentation.xml.rels");
+    if (relsFile) {
+      var relsXml = await relsFile.async("string");
+      var strippedRelsXml = relsXml.replace(/<Relationship\b(?=[^>]*Type="http:\/\/schemas\.openxmlformats\.org\/officeDocument\/2006\/relationships\/font")[^>]*\/>/g, "");
+      if (strippedRelsXml !== relsXml) {
+        zip.file("ppt/_rels/presentation.xml.rels", strippedRelsXml);
+        changed = true;
+      }
+    }
+
+    if (!changed) {
+      return bytes;
+    }
+
+    return zip.generateAsync({
+      type: "uint8array",
+      compression: "DEFLATE",
+      compressionOptions: { level: 6 }
+    });
+  }
+
+  function waitForBrowserSettled() {
+    return new Promise(function (resolve) {
+      window.setTimeout(resolve, 500);
+    });
+  }
+
+  async function cloneBytesThroughBlob(bytes) {
+    return new Uint8Array(await new Blob([bytes]).arrayBuffer());
+  }
+
+  function isSupportedInputFile(file) {
+    return isPdfFile(file) || isImageFile(file) || isDocumentFile(file);
+  }
+
+  function isPdfFile(file) {
+    return file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+  }
+
+  function isImageFile(file) {
+    return /^image\/(png|jpeg|webp)$/.test(file.type) || /\.(png|jpe?g|webp)$/i.test(file.name);
+  }
+
+  function isDocumentFile(file) {
+    return documentFormats.has(getExtension(file.name));
   }
 
   async function addImageFile(file) {
@@ -278,7 +496,7 @@
       '<div class="thumb-wrap">' + thumb + "</div>" +
       '<div class="page-meta">' +
         '<strong>' + escapeText(source ? source.name : "Unknown file") + "</strong><br>" +
-        escapeText(item.type === "pdf" ? "PDF page " + (item.pageIndex + 1) : formatPixels(source.width, source.height)) +
+        escapeText(getPageMetaText(item, source)) +
         (item.rotation ? "<br>Rotation " + item.rotation + " deg" : "") +
       "</div>" +
       '<div class="page-actions" aria-label="Page actions">' +
@@ -289,6 +507,16 @@
         '<button class="icon-action" type="button" data-action="duplicate" aria-label="Duplicate page">copy</button>' +
       "</div>" +
     "</article>";
+  }
+
+  function getPageMetaText(item, source) {
+    if (!source) {
+      return "Unknown source";
+    }
+    if (item.type === "pdf") {
+      return (source.convertedFrom ? source.convertedFrom + " converted page " : "PDF page ") + (item.pageIndex + 1);
+    }
+    return formatPixels(source.width, source.height);
   }
 
   function renderThumb(item) {
@@ -962,6 +1190,22 @@
     return output;
   }
 
+  function withTimeout(promise, timeoutMs, message) {
+    return new Promise(function (resolve, reject) {
+      var timeout = window.setTimeout(function () {
+        reject(new Error(message));
+      }, timeoutMs);
+
+      promise.then(function (value) {
+        window.clearTimeout(timeout);
+        resolve(value);
+      }, function (error) {
+        window.clearTimeout(timeout);
+        reject(error);
+      });
+    });
+  }
+
   function downloadBlob(blob, filename) {
     var url = URL.createObjectURL(blob);
     var anchor = document.createElement("a");
@@ -989,6 +1233,25 @@
       .replace(/[^a-z0-9._-]+/gi, "-")
       .replace(/^-+|-+$/g, "")
       .slice(0, 80) || "pdffreely-document";
+  }
+
+  function getPathBasename(name) {
+    return String(name || "").split("/").pop() || "font.ttf";
+  }
+
+  function getExtension(name) {
+    var match = /\.([a-z0-9]+)$/i.exec(name || "");
+    return match ? match[1].toLowerCase() : "";
+  }
+
+  function toUint8Array(value) {
+    if (value instanceof Uint8Array) {
+      return value;
+    }
+    if (value instanceof ArrayBuffer) {
+      return new Uint8Array(value);
+    }
+    return new Uint8Array(value);
   }
 
   function getSelectedPages() {
