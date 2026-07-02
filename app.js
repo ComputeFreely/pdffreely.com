@@ -26,14 +26,18 @@
   var libreOfficeFontsReady = null;
   var retainedPresentationBytes = null;
   var libreOfficeUsesFonts = true;
-  var assetVersion = "2026-07-02-4";
+  var libreOfficeLastProgress = null;
+  var assetVersion = "2026-07-02-5";
   var libreOfficeRuntimeBaseUrl = "https://data.pdffreely.com/libreoffice/2.6.0/";
   var libreOfficeFontBundleUrl = libreOfficeRuntimeBaseUrl + "fonts/freely-fonts.zip";
   var libreOfficeFontTimeoutMs = 30000;
   var libreOfficeInitializeTimeoutMs = 120000;
   var libreOfficeConvertBaseTimeoutMs = 120000;
   var libreOfficeConvertPerMbTimeoutMs = 2000;
+  var libreOfficePresentationConvertBaseTimeoutMs = 300000;
+  var libreOfficePresentationConvertPerMbTimeoutMs = 8000;
   var libreOfficeConvertMaxTimeoutMs = 480000;
+  var libreOfficePresentationConvertMaxTimeoutMs = 900000;
 
   var documentFormats = new Set([
     "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp",
@@ -41,6 +45,7 @@
   ]);
 
   var embeddedFontStripFormats = new Set(["pptx"]);
+  var slowDocumentLoadFormats = new Set(["ppt", "pptx", "odp"]);
 
   var pageSizes = {
     letter: [612, 792],
@@ -256,12 +261,18 @@
   async function convertWithLibreOfficeAttempt(inputBytes, filename, useFonts) {
     await ensureLibreOffice(useFonts);
     setStatus("Converting " + filename, "warn");
-    var result = await withTimeout(
-      libreOfficeConverter.convert(inputBytes, { outputFormat: "pdf" }, filename),
-      getLibreOfficeConversionTimeoutMs(inputBytes),
-      "Document conversion timed out while LibreOffice was loading the file."
-    );
-    return toUint8Array(result.data);
+    var timeoutMs = getLibreOfficeConversionTimeoutMs(inputBytes, filename);
+    var stopHeartbeat = startLibreOfficeConversionHeartbeat(timeoutMs);
+    try {
+      var result = await withTimeout(
+        libreOfficeConverter.convert(inputBytes, { outputFormat: "pdf" }, filename),
+        timeoutMs,
+        "Document conversion timed out while LibreOffice was loading the file."
+      );
+      return toUint8Array(result.data);
+    } finally {
+      stopHeartbeat();
+    }
   }
 
   async function ensureLibreOffice(useFonts) {
@@ -298,6 +309,11 @@
       sofficeWorkerJs: versionedAssetUrl("/assets/vendor/libreoffice/wasm/soffice.worker.js"),
       browserWorkerJs: versionedAssetUrl("/assets/vendor/libreoffice/dist/browser.worker.global.js"),
       onProgress: function (info) {
+        libreOfficeLastProgress = {
+          message: info && info.message ? info.message : "",
+          phase: info && info.phase ? info.phase : "",
+          at: Date.now()
+        };
         var percent = Number.isFinite(info && info.percent) ? Math.round(info.percent) + "% " : "";
         var message = info && info.message ? info.message : "Working";
         setStatus(percent + message, "warn");
@@ -331,6 +347,7 @@
     var converter = libreOfficeConverter;
     libreOfficeReady = null;
     libreOfficeConverter = null;
+    libreOfficeLastProgress = null;
     if (converter) {
       await destroyLibreOfficeConverter(converter);
     }
@@ -347,10 +364,36 @@
     }
   }
 
-  function getLibreOfficeConversionTimeoutMs(inputBytes) {
+  function getLibreOfficeConversionTimeoutMs(inputBytes, filename) {
     var sizeMb = Math.ceil((inputBytes && inputBytes.length ? inputBytes.length : 0) / 1048576);
+    if (slowDocumentLoadFormats.has(getExtension(filename))) {
+      var presentationTimeout = libreOfficePresentationConvertBaseTimeoutMs + sizeMb * libreOfficePresentationConvertPerMbTimeoutMs;
+      return Math.min(libreOfficePresentationConvertMaxTimeoutMs, presentationTimeout);
+    }
     var timeout = libreOfficeConvertBaseTimeoutMs + sizeMb * libreOfficeConvertPerMbTimeoutMs;
     return Math.min(libreOfficeConvertMaxTimeoutMs, timeout);
+  }
+
+  function startLibreOfficeConversionHeartbeat(timeoutMs) {
+    var startedAt = Date.now();
+    var lastStatusAt = 0;
+    var timer = window.setInterval(function () {
+      var elapsedMs = Date.now() - startedAt;
+      if (elapsedMs < 45000 || elapsedMs - lastStatusAt < 30000) {
+        return;
+      }
+      if (!libreOfficeLastProgress || !/loading document/i.test(libreOfficeLastProgress.message)) {
+        return;
+      }
+      lastStatusAt = elapsedMs;
+      var elapsedText = formatDuration(Math.round(elapsedMs / 1000));
+      var limitText = formatDuration(Math.round(timeoutMs / 1000));
+      setStatus("Still loading document (" + elapsedText + " / " + limitText + ")", "warn");
+    }, 5000);
+
+    return function () {
+      window.clearInterval(timer);
+    };
   }
 
   function loadLibreOfficeModule() {
@@ -1450,6 +1493,16 @@
       unit += 1;
     }
     return (unit === 0 ? value : value.toFixed(value >= 10 ? 1 : 2)) + " " + units[unit];
+  }
+
+  function formatDuration(seconds) {
+    var totalSeconds = Math.max(0, Number(seconds) || 0);
+    var minutes = Math.floor(totalSeconds / 60);
+    var remainder = totalSeconds % 60;
+    if (!minutes) {
+      return remainder + "s";
+    }
+    return minutes + "m " + String(remainder).padStart(2, "0") + "s";
   }
 
   function formatPixels(width, height) {
