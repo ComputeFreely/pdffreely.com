@@ -20,18 +20,7 @@
     busy: false
   };
 
-  var libreOfficeConverter = null;
-  var libreOfficeInitializing = null;
-  var libreOfficeModuleReady = null;
-  var libreOfficeFontsReady = null;
   var assetVersion = "2026-07-02-12";
-  var libreOfficeRuntimeBaseUrl = "https://data.pdffreely.com/libreoffice/2.6.0/";
-  var libreOfficeFontBundleUrl = libreOfficeRuntimeBaseUrl + "fonts/freely-fonts.zip";
-
-  var documentFormats = new Set([
-    "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp",
-    "rtf", "txt", "html", "htm", "csv", "epub"
-  ]);
 
   var pageSizes = {
     letter: [612, 792],
@@ -109,7 +98,7 @@
     var usableFiles = files.filter(isSupportedInputFile);
 
     if (!usableFiles.length) {
-      setStatus("Use PDF, image, Office, OpenDocument, text, CSV, HTML, or EPUB files", "warn");
+      setStatus("Use PDF, PNG, JPG, or WebP files", "warn");
       return;
     }
 
@@ -123,8 +112,6 @@
           await addPdfFile(file);
         } else if (isImageFile(file)) {
           await addImageFile(file);
-        } else {
-          await addDocumentFile(file);
         }
       } catch (error) {
         lastError = file.name + ": " + getErrorMessage(error);
@@ -146,7 +133,7 @@
     await addPdfBytes(bytes, file.name, file.size);
   }
 
-  async function addPdfBytes(bytes, name, inputSize, convertedFrom) {
+  async function addPdfBytes(bytes, name, inputSize) {
     var pdfDoc = await window.PDFLib.PDFDocument.load(bytes, {
       ignoreEncryption: true,
       updateMetadata: false
@@ -162,8 +149,7 @@
       bytes: bytes,
       pdfDoc: pdfDoc,
       pageCount: pdfDoc.getPageCount(),
-      pdfjsDoc: null,
-      convertedFrom: convertedFrom || ""
+      pdfjsDoc: null
     };
 
     state.sources[sourceId] = source;
@@ -194,82 +180,8 @@
     }
   }
 
-  async function addDocumentFile(file) {
-    var pdfBytes = await convertDocumentFileToPdf(file);
-    await addPdfBytes(pdfBytes, file.name, file.size, getExtension(file.name).toUpperCase());
-  }
-
-  async function convertDocumentFileToPdf(file) {
-    var converter = await getLibreOfficeConverter();
-    var inputFormat = getExtension(file.name) || "docx";
-    setStatus("Converting " + file.name, "warn");
-    var result = await converter.convertFile(file, {
-      inputFormat: inputFormat,
-      outputFormat: "pdf"
-    });
-    return result.data;
-  }
-
-  async function getLibreOfficeConverter() {
-    if (libreOfficeConverter && libreOfficeConverter.isReady()) {
-      return libreOfficeConverter;
-    }
-
-    if (libreOfficeInitializing) {
-      await libreOfficeInitializing;
-      return libreOfficeConverter;
-    }
-
-    if (!window.crossOriginIsolated || !window.SharedArrayBuffer) {
-      throw new Error("Document conversion needs cross-origin isolation headers. Use the deployed site or the local isolated dev server.");
-    }
-
-    libreOfficeInitializing = initializeLibreOfficeConverter();
-    await libreOfficeInitializing;
-    return libreOfficeConverter;
-  }
-
-  async function initializeLibreOfficeConverter() {
-    setStatus("Loading document converter", "warn");
-    var module = await loadLibreOfficeModule();
-    var wasmPaths = module.createWasmPaths("/assets/vendor/libreoffice/wasm/");
-    var fonts = await loadLibreOfficeFonts(module);
-
-    libreOfficeConverter = new module.WorkerBrowserConverter({
-      sofficeJs: versionedAssetUrl(wasmPaths.sofficeJs),
-      sofficeWasm: libreOfficeRuntimeBaseUrl + "wasm/soffice.wasm",
-      sofficeData: libreOfficeRuntimeBaseUrl + "wasm/soffice.data",
-      sofficeWorkerJs: versionedAssetUrl(wasmPaths.sofficeWorkerJs),
-      browserWorkerJs: versionedAssetUrl("/assets/vendor/libreoffice/dist/browser.worker.global.js"),
-      verbose: false,
-      fonts: fonts,
-      onProgress: function (info) {
-        var percent = Number.isFinite(info && info.percent) ? Math.round(info.percent) + "% " : "";
-        var message = info && info.message ? info.message : "Working";
-        setStatus(percent + message, "warn");
-      }
-    });
-
-    await libreOfficeConverter.initialize();
-    setStatus("Document converter ready");
-  }
-
-  function loadLibreOfficeModule() {
-    if (!libreOfficeModuleReady) {
-      libreOfficeModuleReady = import(versionedAssetUrl("/assets/vendor/libreoffice/dist/browser.js"));
-    }
-    return libreOfficeModuleReady;
-  }
-
-  function loadLibreOfficeFonts(module) {
-    if (!libreOfficeFontsReady) {
-      setStatus("Loading document fonts", "warn");
-      libreOfficeFontsReady = module.loadFontsFromUrl(libreOfficeFontBundleUrl);
-    }
-    return libreOfficeFontsReady;
-  }
   function isSupportedInputFile(file) {
-    return isPdfFile(file) || isImageFile(file) || isDocumentFile(file);
+    return isPdfFile(file) || isImageFile(file);
   }
 
   function isPdfFile(file) {
@@ -278,10 +190,6 @@
 
   function isImageFile(file) {
     return /^image\/(png|jpeg|webp)$/.test(file.type) || /\.(png|jpe?g|webp)$/i.test(file.name);
-  }
-
-  function isDocumentFile(file) {
-    return documentFormats.has(getExtension(file.name));
   }
 
   async function addImageFile(file) {
@@ -411,7 +319,7 @@
       return "Unknown source";
     }
     if (item.type === "pdf") {
-      return (source.convertedFrom ? source.convertedFrom + " converted page " : "PDF page ") + (item.pageIndex + 1);
+      return "PDF page " + (item.pageIndex + 1);
     }
     return formatPixels(source.width, source.height);
   }
@@ -1118,11 +1026,6 @@
       .replace(/[^a-z0-9._-]+/gi, "-")
       .replace(/^-+|-+$/g, "")
       .slice(0, 80) || "pdffreely-document";
-  }
-
-  function getExtension(name) {
-    var match = /\.([a-z0-9]+)$/i.exec(name || "");
-    return match ? match[1].toLowerCase() : "";
   }
 
   function getSelectedPages() {

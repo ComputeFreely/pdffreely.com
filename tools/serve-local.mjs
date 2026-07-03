@@ -10,7 +10,6 @@ const host = "127.0.0.1";
 
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
-  ".data": "application/octet-stream",
   ".html": "text/html; charset=utf-8",
   ".ico": "image/x-icon",
   ".js": "text/javascript; charset=utf-8",
@@ -18,7 +17,6 @@ const mimeTypes = {
   ".map": "application/json; charset=utf-8",
   ".pdf": "application/pdf",
   ".svg": "image/svg+xml",
-  ".wasm": "application/wasm",
   ".zip": "application/zip"
 };
 
@@ -59,8 +57,6 @@ function send(response, status, message) {
 function headers(contentType) {
   return {
     "Content-Type": contentType,
-    "Cross-Origin-Opener-Policy": "same-origin",
-    "Cross-Origin-Embedder-Policy": "require-corp",
     "Cross-Origin-Resource-Policy": "same-origin",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
