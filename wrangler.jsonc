@@ -1,13 +1,21 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "pdffreely",
+  "main": "worker.js",
   "compatibility_date": "2026-06-30",
   "observability": {
     "enabled": true
   },
   "assets": {
-    "directory": "."
+    "directory": ".",
+    "binding": "ASSETS"
   },
+  "r2_buckets": [
+    {
+      "binding": "WASM_BUCKET",
+      "bucket_name": "pdffreely-data"
+    }
+  ],
   "compatibility_flags": [
     "nodejs_compat"
   ]

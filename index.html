@@ -3,25 +3,25 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Free PDF tools with no upload step. Merge, split, reorder, rotate, watermark, add page numbers, convert images to PDF, and export locally in your browser.">
+    <meta name="description" content="Free document to PDF converter with no upload step. Convert Word, PowerPoint, Excel, OpenDocument files, and images to PDF locally in your browser.">
     <meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large">
     <meta name="theme-color" content="#f5f4ee">
     <meta name="application-name" content="PDF Freely">
-    <meta property="og:title" content="Free PDF Merge, Split, Rotate, Convert | PDF Freely">
-    <meta property="og:description" content="Merge, split, reorder, rotate, watermark, add page numbers, and convert images to PDF locally in your browser. Use Fill Freely for PDF forms and signatures.">
+    <meta property="og:title" content="Free DOCX, PPTX, XLSX to PDF Converter | PDF Freely">
+    <meta property="og:description" content="Convert Word, PowerPoint, Excel, OpenDocument files, and images to PDF locally in your browser. Files never leave your device. Use the Organize tool to merge and split.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://pdffreely.com/">
     <meta property="og:site_name" content="PDF Freely">
     <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="Free PDF Merge, Split, Rotate, Convert | PDF Freely">
-    <meta name="twitter:description" content="Browser-only PDF merge, split, rotate, watermark, page numbering, and image-to-PDF tools. Use Fill Freely for PDF forms and signatures.">
-    <title>Free PDF Merge, Split, Rotate, Image Convert | PDF Freely</title>
+    <meta name="twitter:title" content="Free DOCX, PPTX, XLSX to PDF Converter | PDF Freely">
+    <meta name="twitter:description" content="Browser-only document to PDF conversion. Word, PowerPoint, Excel, images — no upload step.">
+    <title>Free Word, PowerPoint, Excel to PDF Converter | PDF Freely</title>
     <link rel="canonical" href="https://pdffreely.com/">
     <link rel="sitemap" type="application/xml" href="/sitemap.xml">
     <link rel="alternate" type="text/plain" href="/llms.txt" title="AI-readable site summary">
-    <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="assets/shared/freely-ui.css">
+    <link rel="icon" href="/assets/icons/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/styles.css?v=2026-07-02-12">
+    <link rel="stylesheet" href="/assets/shared/freely-ui.css?v=2026-07-02-12">
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -37,7 +37,7 @@
             "@id": "https://pdffreely.com/#app",
             "name": "PDF Freely",
             "url": "https://pdffreely.com/",
-            "description": "A free browser PDF toolset for merging, splitting, reordering, rotating, watermarking, page numbering, metadata, and image-to-PDF conversion with no upload step.",
+            "description": "A free browser PDF toolset: convert Word, PowerPoint, Excel, OpenDocument files, and images to PDF, plus merging, splitting, reordering, rotating, watermarking, and page numbering — all with no upload step.",
             "applicationCategory": "UtilitiesApplication",
             "operatingSystem": "Any modern browser",
             "browserRequirements": "Requires JavaScript in a modern browser.",
@@ -52,10 +52,11 @@
               "url": "https://pdffreely.com/"
             },
             "featureList": [
+              "Convert Word, PowerPoint, Excel, and OpenDocument files to PDF locally",
+              "Convert JPG, PNG, and WebP images to PDF",
               "Merge PDF files",
               "Split PDFs and export selected pages",
               "Reorder, rotate, duplicate, and delete pages",
-              "Convert JPG, PNG, and WebP images to PDF",
               "Add page numbers, text stamps, and watermarks",
               "Local browser processing with no upload step"
             ]
@@ -66,10 +67,26 @@
             "mainEntity": [
               {
                 "@type": "Question",
-                "name": "Does PDF Freely upload PDFs?",
+                "name": "Does PDF Freely upload my documents?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "No. PDF Freely reads and edits files in the browser and does not require an upload step."
+                  "text": "No. Conversion runs inside your browser — Word, PowerPoint, and Excel files are converted by LibreOffice compiled to WebAssembly, locally. Files never leave your device."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Which formats can be converted to PDF?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Word (doc, docx), PowerPoint (ppt, pptx), Excel (xls, xlsx), OpenDocument (odt, odp, ods), RTF, CSV, HTML, plain text, and JPG, PNG, or WebP images."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Why does the first document conversion download an engine?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Office documents are converted by a full LibreOffice engine compiled to WebAssembly (about 60 MB compressed). It only downloads when a file actually needs it — images and PDFs don't — and your browser caches it for next time."
                 }
               },
               {
@@ -77,56 +94,59 @@
                 "name": "Can PDF Freely merge and split PDFs?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "Yes. PDF Freely can merge files, reorder pages, export selected pages, and download each page as a split ZIP."
+                  "text": "Yes. The Organize tool at pdffreely.com/organize/ merges files, reorders pages, exports selected pages, and downloads each page as a split ZIP."
                 }
-              },
-              {
-                "@type": "Question",
-                "name": "Can PDF Freely fill or sign PDF forms?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "No. PDF Freely is for PDF page organization, page numbers, text stamps, watermarks, metadata, and image-to-PDF conversion. Use Fill Freely for PDF form filling, text marks, checkmarks, dates, initials, and visual signatures."
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "Does PDF Freely include redaction?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "No. Redaction is intentionally excluded because visual coverups can leave underlying PDF content extractable."
-                }
-              }
-            ]
-          },
-          {
-            "@type": "BreadcrumbList",
-            "@id": "https://pdffreely.com/#breadcrumb",
-            "itemListElement": [
-              {
-                "@type": "ListItem",
-                "position": 1,
-                "name": "Compute Freely",
-                "item": "https://computefreely.com/"
-              },
-              {
-                "@type": "ListItem",
-                "position": 2,
-                "name": "PDF Freely",
-                "item": "https://pdffreely.com/"
               }
             ]
           }
         ]
       }
     </script>
-    <script src="assets/vendor/pdf-lib.min.js?v=2026-07-02-12" defer></script>
-    <script src="assets/vendor/pdf.min.js?v=2026-07-02-12" defer></script>
-    <script src="app.js?v=2026-07-02-12" defer></script>
+    <style>
+      .convert-shell {
+        display: block;
+        max-width: 60rem;
+        margin: 0 auto;
+      }
+      .convert-note {
+        margin: 0.4rem 0 0;
+        color: rgba(43, 40, 34, 0.7);
+        font-size: 0.88rem;
+      }
+      .convert-files {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+      }
+      .convert-files th,
+      .convert-files td {
+        text-align: left;
+        padding: 0.55rem 0.65rem;
+        border-bottom: 1px solid rgba(43, 40, 34, 0.12);
+        font-size: 0.92rem;
+      }
+      .convert-files th {
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: rgba(43, 40, 34, 0.6);
+      }
+      .convert-files td.size { white-space: nowrap; color: rgba(43, 40, 34, 0.6); }
+      .convert-status { white-space: nowrap; font-weight: 700; }
+      .convert-status.queued { color: rgba(43, 40, 34, 0.55); }
+      .convert-status.working { color: var(--teal-dark); }
+      .convert-status.done { color: var(--teal-dark); }
+      .convert-status.failed { color: var(--red, #b42318); }
+      .convert-drop-inner { padding: 2.2rem 1rem; text-align: center; display: block; cursor: pointer; }
+      .convert-formats { color: rgba(43, 40, 34, 0.6); font-size: 0.85rem; margin-top: 0.35rem; }
+      .convert-preview { width: 100%; height: 70vh; border: 1px solid rgba(43, 40, 34, 0.18); border-radius: 8px; margin-top: 0.75rem; }
+      #qtcanvas { display: none; }
+    </style>
   </head>
   <body>
     <header class="topbar">
       <a class="brand" href="/" aria-label="PDF Freely home">
-        <img class="brand-mark" src="assets/icons/favicon.svg" alt="" width="40" height="40" aria-hidden="true">
+        <img class="brand-mark" src="/assets/icons/favicon.svg" alt="" width="40" height="40" aria-hidden="true">
         <span>
           <strong>PDF Freely</strong>
           <small>Local PDF tools</small>
@@ -135,8 +155,12 @@
       <div class="topbar-actions pdf-topbar-actions">
         <nav class="tool-switcher" aria-label="PDF Freely tools">
           <a class="tool-switcher-link active" href="/" aria-current="page">
+            <strong>Convert to PDF</strong>
+            <span>Word, PowerPoint, Excel</span>
+          </a>
+          <a class="tool-switcher-link" href="/organize/">
             <strong>Organize PDF</strong>
-            <span>Merge, convert, rotate</span>
+            <span>Merge, split, rotate</span>
           </a>
           <a class="tool-switcher-link" href="https://fillfreely.com/">
             <strong>Fill &amp; Sign</strong>
@@ -146,326 +170,43 @@
       </div>
     </header>
 
-    <main class="app-shell">
-      <section class="workspace-pane" aria-labelledby="workspaceTitle">
+    <main class="app-shell convert-shell">
+      <section class="workspace-pane" aria-labelledby="convertTitle">
         <div class="workspace-header compact-header">
-          <h1 class="sr-only" id="workspaceTitle">PDF tools</h1>
+          <h1 id="convertTitle">Convert documents to PDF</h1>
           <div class="engine-badge" id="engineBadge" aria-live="polite">Ready</div>
         </div>
+        <p class="convert-note">
+          Everything runs in this tab — your files never leave your device. Images convert
+          instantly; Word, PowerPoint, and Excel files use a LibreOffice engine that downloads
+          once (~60&nbsp;MB, cached) the first time a file needs it.
+        </p>
 
-        <div class="drop-zone" id="dropZone">
-          <input id="fileInput" class="file-input" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp" multiple>
-          <label class="drop-label" for="fileInput">
-            <span class="drop-icon upload-icon" aria-hidden="true"></span>
-            <span class="drop-title">Choose or drop PDFs and images</span>
+        <div class="drop-zone" id="dropZone" style="margin-top:1rem">
+          <input id="file-input" class="file-input" type="file" multiple
+                 accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.odt,.rtf,.txt,.ppt,.pptx,.odp,.xls,.xlsx,.ods,.csv,.html,.htm,.fodt,.fodp,.fods,.docm,.pptm,.xlsm">
+          <label class="drop-label convert-drop-inner" for="file-input">
+            <span class="drop-title">Choose or drop documents</span>
+            <span class="convert-formats">docx · pptx · xlsx · doc · ppt · xls · odt · odp · ods · rtf · csv · html · txt · jpg · png · webp</span>
           </label>
         </div>
 
-        <div class="workspace-stats" aria-label="Document summary">
-          <div>
-            <span>Files</span>
-            <strong id="fileCount">0</strong>
-          </div>
-          <div>
-            <span>Pages</span>
-            <strong id="pageCount">0</strong>
-          </div>
-          <div>
-            <span>Selected</span>
-            <strong id="selectedCount">0</strong>
-          </div>
-          <div>
-            <span>Size</span>
-            <strong id="totalSize">0 KB</strong>
-          </div>
+        <div class="action-row" id="toolbar" hidden style="margin-top:1rem">
+          <button class="button primary" type="button" id="download-all" disabled>Download all PDFs</button>
+          <span class="convert-note" id="summary"></span>
         </div>
 
-        <div class="action-row">
-          <button class="button primary" type="button" id="downloadPdf">
-            <span class="button-icon download-icon" aria-hidden="true"></span>
-            Download PDF
-          </button>
-          <button class="button" type="button" id="downloadSelected">
-            <span class="button-icon selected-icon" aria-hidden="true"></span>
-            Selected PDF
-          </button>
-          <button class="button" type="button" id="downloadSplit">
-            <span class="button-icon zip-icon" aria-hidden="true"></span>
-            Split ZIP
-          </button>
-          <button class="button ghost" type="button" id="resetAll">
-            <span class="button-icon reset-icon" aria-hidden="true"></span>
-            Reset
-          </button>
-        </div>
+        <table class="convert-files" id="files-table" hidden>
+          <thead><tr><th>File</th><th>Size</th><th>Status</th><th>Result</th></tr></thead>
+          <tbody id="files-body"></tbody>
+        </table>
 
-        <div class="batch-bar" aria-label="Page batch actions">
-          <button type="button" class="mini-button" data-batch="select-all">Select all</button>
-          <button type="button" class="mini-button" data-batch="select-none">Select none</button>
-          <button type="button" class="mini-button" data-batch="invert">Invert</button>
-          <button type="button" class="mini-button" data-batch="rotate-left">Rotate left</button>
-          <button type="button" class="mini-button" data-batch="rotate-right">Rotate right</button>
-          <button type="button" class="mini-button danger" data-batch="remove">Remove selected</button>
+        <div id="preview-wrap" hidden>
+          <h2 class="convert-note" id="preview-title" style="font-size:0.95rem;font-weight:700"></h2>
+          <iframe class="convert-preview" id="preview" title="PDF preview"></iframe>
         </div>
-
-        <div id="emptyState" class="empty-state sr-only">
-          <h2>Choose PDFs or images to begin.</h2>
-        </div>
-
-        <div class="page-grid" id="pageGrid" aria-label="PDF pages"></div>
       </section>
-
-      <form id="pdfForm" class="control-pane">
-        <section class="panel" aria-labelledby="exportTitle">
-          <div class="panel-heading">
-            <div>
-              <h2 id="exportTitle">Output settings</h2>
-            </div>
-          </div>
-
-          <label class="field">
-            <span>Download name</span>
-            <input type="text" id="outputName" spellcheck="false" autocomplete="off" value="pdffreely-document.pdf">
-          </label>
-
-          <div class="field-grid">
-            <label class="field">
-              <span>PDF title</span>
-              <input type="text" id="metadataTitle" maxlength="120" placeholder="Optional">
-            </label>
-            <label class="field">
-              <span>Author</span>
-              <input type="text" id="metadataAuthor" maxlength="120" placeholder="Optional">
-            </label>
-          </div>
-
-          <label class="check-field">
-            <input type="checkbox" id="compactPdf" checked>
-            <span>Compact output structure</span>
-          </label>
-        </section>
-
-        <section class="panel" aria-labelledby="imageTitle">
-          <div class="panel-heading">
-            <div>
-              <h2 id="imageTitle">Image-to-PDF pages</h2>
-            </div>
-          </div>
-
-          <div class="field-grid">
-            <label class="field">
-              <span>Page size</span>
-              <select id="imagePageSize">
-                <option value="original">Original image</option>
-                <option value="letter" selected>US Letter</option>
-                <option value="a4">A4</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>Fit</span>
-              <select id="imageFit">
-                <option value="contain" selected>Contain</option>
-                <option value="cover">Cover</option>
-                <option value="stretch">Stretch</option>
-              </select>
-            </label>
-          </div>
-
-          <label class="range-field" for="imageMargin">
-            <span>
-              <strong>Margin</strong>
-              <em id="imageMarginValue">36 pt</em>
-            </span>
-            <input type="range" id="imageMargin" min="0" max="96" step="2" value="36">
-          </label>
-
-          <label class="range-field" for="imageQuality">
-            <span>
-              <strong>Image quality</strong>
-              <em id="imageQualityValue">92%</em>
-            </span>
-            <input type="range" id="imageQuality" min="50" max="100" step="1" value="92">
-          </label>
-        </section>
-
-        <section class="panel" aria-labelledby="stampTitle">
-          <div class="panel-heading">
-            <div>
-              <h2 id="stampTitle">Text and page numbers</h2>
-            </div>
-          </div>
-
-          <label class="check-field">
-            <input type="checkbox" id="pageNumbers">
-            <span>Add page numbers</span>
-          </label>
-
-          <div class="field-grid">
-            <label class="field">
-              <span>Page number position</span>
-              <select id="pageNumberPosition">
-                <option value="bottom-center" selected>Bottom center</option>
-                <option value="bottom-right">Bottom right</option>
-                <option value="bottom-left">Bottom left</option>
-                <option value="top-right">Top right</option>
-              </select>
-            </label>
-            <label class="field color-field">
-              <span>Stamp color</span>
-              <input type="color" id="stampColor" value="#1f2937">
-            </label>
-          </div>
-
-          <label class="field">
-            <span>Text stamp</span>
-            <input type="text" id="stampText" maxlength="80" placeholder="Approved, Draft, Confidential...">
-          </label>
-
-          <div class="field-grid">
-            <label class="field">
-              <span>Stamp position</span>
-              <select id="stampPosition">
-                <option value="top-left">Top left</option>
-                <option value="top-center">Top center</option>
-                <option value="top-right" selected>Top right</option>
-                <option value="center">Center</option>
-                <option value="bottom-left">Bottom left</option>
-                <option value="bottom-center">Bottom center</option>
-                <option value="bottom-right">Bottom right</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>Apply stamp to</span>
-              <select id="stampScope">
-                <option value="all" selected>All exported pages</option>
-                <option value="selected">Selected pages</option>
-                <option value="current">Current page</option>
-              </select>
-            </label>
-          </div>
-
-          <label class="range-field" for="stampSize">
-            <span>
-              <strong>Stamp size</strong>
-              <em id="stampSizeValue">18 pt</em>
-            </span>
-            <input type="range" id="stampSize" min="8" max="72" step="1" value="18">
-          </label>
-        </section>
-
-        <section class="panel" aria-labelledby="watermarkTitle">
-          <div class="panel-heading">
-            <div>
-              <h2 id="watermarkTitle">Watermark</h2>
-            </div>
-          </div>
-
-          <label class="field">
-            <span>Watermark text</span>
-            <input type="text" id="watermarkText" maxlength="80" placeholder="CONFIDENTIAL">
-          </label>
-
-          <div class="field-grid">
-            <label class="field">
-              <span>Apply watermark to</span>
-              <select id="watermarkScope">
-                <option value="all" selected>All exported pages</option>
-                <option value="selected">Selected pages</option>
-                <option value="current">Current page</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>Angle</span>
-              <select id="watermarkAngle">
-                <option value="-35" selected>-35 degrees</option>
-                <option value="-20">-20 degrees</option>
-                <option value="0">0 degrees</option>
-                <option value="20">20 degrees</option>
-                <option value="35">35 degrees</option>
-              </select>
-            </label>
-          </div>
-
-          <label class="range-field" for="watermarkSize">
-            <span>
-              <strong>Watermark size</strong>
-              <em id="watermarkSizeValue">64 pt</em>
-            </span>
-            <input type="range" id="watermarkSize" min="24" max="160" step="2" value="64">
-          </label>
-
-          <label class="range-field" for="watermarkOpacity">
-            <span>
-              <strong>Opacity</strong>
-              <em id="watermarkOpacityValue">18%</em>
-            </span>
-            <input type="range" id="watermarkOpacity" min="5" max="60" step="1" value="18">
-          </label>
-        </section>
-
-        <section class="panel note-panel" aria-labelledby="limitsTitle">
-          <div class="panel-heading">
-            <div>
-              <h2 id="limitsTitle">Limits</h2>
-            </div>
-          </div>
-          <ul class="limits-list">
-            <li>Encrypted or password-protected PDFs cannot be edited without the password.</li>
-            <li>Existing PDF images are preserved, not recompressed. Image input quality is adjustable.</li>
-            <li>Very large files depend on your browser memory, not a server queue.</li>
-            <li>Redaction is not included because fake redaction is worse than no redaction.</li>
-          </ul>
-        </section>
-      </form>
     </main>
-
-    <section class="discovery-section" aria-labelledby="pdfDiscoveryTitle">
-      <div class="discovery-content">
-        <p class="eyebrow">PDF tools</p>
-        <h2 id="pdfDiscoveryTitle">Merge, split, rotate, reorder, and convert images to PDFs locally.</h2>
-        <p class="discovery-lede">PDF Freely is for document assembly and page-level PDF work: merge PDFs, split PDFs, reorder pages, rotate pages, delete or duplicate pages, convert images to PDF, add page numbers, add text stamps, and add watermarks. Use <a href="https://fillfreely.com/">Fill Freely</a> when you need PDF form fields, text marks, checkmarks, dates, initials, or visual signatures.</p>
-        <ul class="search-terms" aria-label="Common PDF Freely searches">
-          <li>reorder PDF pages</li>
-          <li>merge PDF no upload</li>
-          <li>split PDF online</li>
-          <li>rotate PDF pages</li>
-          <li>image to PDF converter</li>
-          <li>watermark PDF free</li>
-        </ul>
-        <div class="discovery-grid" aria-label="PDF Freely capabilities">
-          <article>
-            <h3>Merge and reorder</h3>
-            <p>Add PDFs and images, then reorder, duplicate, rotate, delete, select, and export pages without sending the source files to a server.</p>
-          </article>
-          <article>
-            <h3>Export flexible outputs</h3>
-            <p>Download one combined PDF, only selected pages, or a split ZIP. Set a filename, title, author, page size, image fit, margin, and image quality.</p>
-          </article>
-          <article>
-            <h3>Marks and metadata</h3>
-            <p>Add page numbers, text stamps, watermarks, and basic PDF metadata for everyday document cleanup and sharing.</p>
-          </article>
-        </div>
-        <div class="faq-list" aria-label="PDF Freely answers">
-          <article>
-            <h3>Does PDF Freely upload PDFs?</h3>
-            <p>No. PDF Freely reads and edits files in the browser and does not require an upload step.</p>
-          </article>
-          <article>
-            <h3>Can PDF Freely merge and split PDFs?</h3>
-            <p>Yes. PDF Freely can merge files, reorder pages, export selected pages, and download each page as a split ZIP.</p>
-          </article>
-          <article>
-            <h3>Can PDF Freely fill or sign PDF forms?</h3>
-            <p>No. PDF Freely is for page organization, page numbers, text stamps, watermarks, metadata, and image-to-PDF conversion. Use <a href="https://fillfreely.com/">Fill Freely</a> for PDF forms, text marks, checkmarks, dates, initials, and visual signatures.</p>
-          </article>
-          <article>
-            <h3>Does PDF Freely include redaction?</h3>
-            <p>No. Redaction is intentionally excluded because visual coverups can leave underlying PDF content extractable.</p>
-          </article>
-        </div>
-      </div>
-    </section>
 
     <footer class="site-footer suite-footer">
       <div class="suite-footer-head">
@@ -477,7 +218,7 @@
         <a class="suite-link" href="https://recordfreely.com/"><strong>Record Freely</strong><span>Screen and camera recorder</span></a>
         <a class="suite-link" href="https://qrfreely.com/"><strong>QR Freely</strong><span>Free QR code generator</span></a>
         <a class="suite-link" href="https://videofreely.com/"><strong>Video Freely</strong><span>Browser video converter</span></a>
-        <a class="suite-link" href="https://pdffreely.com/"><strong>PDF Freely</strong><span>Merge, split, rotate PDFs</span></a>
+        <a class="suite-link" href="https://pdffreely.com/"><strong>PDF Freely</strong><span>Convert, merge, split PDFs</span></a>
         <a class="suite-link" href="https://fillfreely.com/"><strong>Fill Freely</strong><span>Add text and signatures to PDFs</span></a>
         <a class="suite-link" href="https://imagefreely.com/"><strong>Image Freely</strong><span>Image editor and bulk converter</span></a>
         <a class="suite-link" href="https://resumefreely.com/"><strong>Resume Freely</strong><span>Resume and cover letter builder</span></a>
@@ -488,5 +229,10 @@
         <a href="mailto:info@computefreely.com">info@computefreely.com</a>
       </nav>
     </footer>
+
+    <!-- LibreOffice WASM (Qt) requires a canvas element even for headless conversion. -->
+    <canvas id="qtcanvas"></canvas>
+    <script src="/assets/vendor/pdf-lib.min.js?v=2026-07-02-12" defer></script>
+    <script type="module" src="/convert.js?v=2026-07-02-2"></script>
   </body>
 </html>

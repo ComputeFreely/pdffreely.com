@@ -35,7 +35,7 @@
       return;
     }
 
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc = versionedAssetUrl("assets/vendor/pdf.worker.min.js");
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = versionedAssetUrl("/assets/vendor/pdf.worker.min.js");
     bindEvents();
     syncControls();
     renderPages();
@@ -98,7 +98,7 @@
     var usableFiles = files.filter(isSupportedInputFile);
 
     if (!usableFiles.length) {
-      setStatus("Use PDF, PNG, JPG, or WebP files", "warn");
+      setStatus("Use PDF, image, or document files", "warn");
       return;
     }
 
@@ -112,6 +112,8 @@
           await addPdfFile(file);
         } else if (isImageFile(file)) {
           await addImageFile(file);
+        } else if (isOfficeFile(file)) {
+          await addOfficeFile(file);
         }
       } catch (error) {
         lastError = file.name + ": " + getErrorMessage(error);
@@ -131,6 +133,24 @@
     var buffer = await file.arrayBuffer();
     var bytes = new Uint8Array(buffer);
     await addPdfBytes(bytes, file.name, file.size);
+  }
+
+  // Office documents are converted to PDF by the shared LibreOffice WASM
+  // module, which is imported (and its ~60 MB engine downloaded) only when a
+  // file actually needs it. PDFs and images never trigger the download.
+  var loConvert = null;
+
+  async function addOfficeFile(file) {
+    if (!loConvert) {
+      loConvert = await import("/assets/shared/lo-convert.js?v=2026-07-02-2");
+      loConvert.onStatus(function (text, level) {
+        setStatus(text, level);
+      });
+    }
+    setStatus("Converting " + file.name + "…", "warn");
+    var pdfBytes = await loConvert.convertToPdf(file);
+    var pdfName = file.name.replace(/\.[^.]+$/, "") + ".pdf";
+    await addPdfBytes(pdfBytes, pdfName, file.size);
   }
 
   async function addPdfBytes(bytes, name, inputSize) {
@@ -181,7 +201,13 @@
   }
 
   function isSupportedInputFile(file) {
-    return isPdfFile(file) || isImageFile(file);
+    return isPdfFile(file) || isImageFile(file) || isOfficeFile(file);
+  }
+
+  var OFFICE_FILE_RE = /\.(docx?|docm|odt|fodt|ott|rtf|txt|pptx?|pptm|odp|fodp|otp|xlsx?|xlsm|ods|fods|ots|csv|html?|wps|wpd|pages|key|numbers|abw)$/i;
+
+  function isOfficeFile(file) {
+    return OFFICE_FILE_RE.test(file.name);
   }
 
   function isPdfFile(file) {

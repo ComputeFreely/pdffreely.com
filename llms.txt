@@ -1,10 +1,15 @@
 # PDF Freely
 
-PDF Freely is a free local PDF toolset for browser-side document assembly and page-level PDF tasks. It merges, splits, reorders, rotates, stamps, watermarks, and converts images to PDF locally with no upload step. For PDF form filling and visual signatures, use Fill Freely.
+PDF Freely is a free local PDF toolset for browser-side document assembly and page-level PDF tasks. It merges, splits, reorders, rotates, stamps, watermarks, and converts images and office documents to PDF locally with no upload step. For PDF form filling and visual signatures, use Fill Freely.
 
 ## Primary URL
 
 https://pdffreely.com/
+
+## Pages
+
+- https://pdffreely.com/ — Convert to PDF (Word, PowerPoint, Excel, OpenDocument via LibreOffice WebAssembly; images via pdf-lib)
+- https://pdffreely.com/organize/ — Organize PDF (merge, split, reorder, rotate, stamp, image to PDF; also accepts office documents, converted locally)
 
 ## Capabilities
 
@@ -12,6 +17,7 @@ https://pdffreely.com/
 - Split PDFs and export selected pages or a split ZIP.
 - Reorder, rotate, duplicate, delete, and select pages.
 - Convert JPG, PNG, and WebP images to PDF pages.
+- Convert doc, docx, ppt, pptx, xls, xlsx, odt, odp, ods, rtf, csv, html, and txt files to PDF locally with LibreOffice WebAssembly (engine downloads on demand, ~60 MB one time, cached; images and PDFs never trigger it). Both tools accept office documents.
 - Add page numbers, text stamps, watermarks, title metadata, and author metadata.
 - Link to Fill Freely for PDF form filling, text marks, checkmarks, dates, initials, and visual signatures.
 - Run locally in the browser with no account, watermark, upload step, or download gate.
@@ -25,4 +31,4 @@ https://pdffreely.com/
 
 ## Useful search topics
 
-reorder PDF pages, merge PDF no upload, split PDF online, rotate PDF pages, image to PDF converter, JPG to PDF, PNG to PDF, watermark PDF free, add page numbers to PDF
+reorder PDF pages, merge PDF no upload, split PDF online, rotate PDF pages, image to PDF converter, JPG to PDF, PNG to PDF, watermark PDF free, add page numbers to PDF, docx to PDF no upload, pptx to PDF converter, xlsx to PDF, word to PDF offline, powerpoint to PDF local

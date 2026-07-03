@@ -11,3 +11,5 @@ tools
 README.md
 AGENTS.md
 wrangler.jsonc
+wasm
+worker.js
