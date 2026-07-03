@@ -125,7 +125,11 @@
       state.activePageId = state.pages[0].id;
     }
 
-    setBusy(false, state.pages.length ? "Ready" : (lastError || "No pages"), lastError && !state.pages.length ? "danger" : undefined);
+    setBusy(
+      false,
+      lastError || (state.pages.length ? "Ready" : "No pages"),
+      lastError ? "danger" : undefined
+    );
     renderPages();
   }
 
@@ -532,6 +536,34 @@
     if (!getPageById(state.activePageId)) {
       state.activePageId = state.pages.length ? state.pages[0].id : "";
     }
+    releaseUnusedSources();
+  }
+
+  // Free sources no page references anymore: revoke image object URLs,
+  // destroy pdf.js documents, and keep the Files/Size stats accurate.
+  // Skipped while busy so an in-flight export never loses a source.
+  function releaseUnusedSources() {
+    if (state.busy) {
+      return;
+    }
+    var referenced = {};
+    state.pages.forEach(function (item) {
+      referenced[item.sourceId] = true;
+    });
+    Object.keys(state.sources).forEach(function (id) {
+      if (referenced[id]) {
+        return;
+      }
+      var source = state.sources[id];
+      if (source.objectUrl) {
+        URL.revokeObjectURL(source.objectUrl);
+      }
+      if (source.pdfjsDoc && source.pdfjsDoc.destroy) {
+        source.pdfjsDoc.destroy();
+      }
+      state.totalInputBytes = Math.max(0, state.totalInputBytes - source.size);
+      delete state.sources[id];
+    });
   }
 
   async function downloadCombined(selectedOnly) {

@@ -71,7 +71,9 @@ zHT.thrPort.onmessage = (e) => {
       break;
     }
     default:
-      throw Error('Unknown message command: ' + m.cmd);
+      // Don't throw: an uncaught error here dies inside the worker with
+      // nothing reported back to the page.
+      console.warn('office_thread: unknown message command:', m && m.cmd, m);
   }
 };
 

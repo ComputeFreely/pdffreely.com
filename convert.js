@@ -80,19 +80,24 @@ function updateSummary() {
 async function pump() {
   if (pumping) return;
   pumping = true;
-  while (queue.length) {
-    const id = queue.shift();
-    const job = jobs.get(id);
-    job.statusCell.className = 'convert-status working';
-    job.statusCell.textContent = 'Converting…';
-    try {
-      const { bytes, kind } = await convertOne(job.file);
-      finishJob(id, { bytes, kind });
-    } catch (err) {
-      finishJob(id, { error: err && err.message || String(err) });
+  try {
+    while (queue.length) {
+      const id = queue.shift();
+      const job = jobs.get(id);
+      job.statusCell.className = 'convert-status working';
+      job.statusCell.textContent = 'Converting…';
+      try {
+        const { bytes, kind } = await convertOne(job.file);
+        finishJob(id, { bytes, kind });
+      } catch (err) {
+        finishJob(id, { error: err && err.message || String(err) });
+      }
     }
+  } finally {
+    // Never leave the queue wedged if something outside the per-file
+    // try/catch (e.g. row rendering) throws.
+    pumping = false;
   }
-  pumping = false;
 }
 
 async function convertOne(file) {

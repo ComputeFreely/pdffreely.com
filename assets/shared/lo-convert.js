@@ -57,9 +57,18 @@ export function engineReady() {
 /**
  * Start (or join) the engine download+boot. Safe to call repeatedly.
  * Resolves when the office thread is ready to convert.
+ * On boot failure the attempt is discarded so a later call can retry
+ * (e.g. after a transient network error), and the failure is surfaced
+ * on the status badge instead of leaving "Downloading…" up forever.
  */
 export function ensureEngine() {
-  if (!enginePromise) enginePromise = startEngine();
+  if (!enginePromise) {
+    enginePromise = startEngine().catch((err) => {
+      enginePromise = null;
+      emitStatus('Document engine failed: ' + (err && err.message || err), 'danger');
+      throw err;
+    });
+  }
   return enginePromise;
 }
 

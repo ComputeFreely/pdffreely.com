@@ -13,13 +13,19 @@ const mimeTypes = {
   ".data": "application/octet-stream",
   ".html": "text/html; charset=utf-8",
   ".ico": "image/x-icon",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
   ".js": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".map": "application/json; charset=utf-8",
   ".metadata": "application/octet-stream",
   ".pdf": "application/pdf",
+  ".png": "image/png",
   ".svg": "image/svg+xml",
+  ".txt": "text/plain; charset=utf-8",
   ".wasm": "application/wasm",
+  ".webp": "image/webp",
+  ".xml": "application/xml; charset=utf-8",
   ".zip": "application/zip"
 };
 
@@ -61,8 +67,7 @@ function headers(contentType) {
   return {
     "Content-Type": contentType,
     // COOP/COEP enable SharedArrayBuffer for the LibreOffice WASM converter.
-    // Production scopes these to /convert/ via _headers; locally they are
-    // applied everywhere for simplicity.
+    // Production applies these everywhere via _headers; the same is done here.
     "Cross-Origin-Opener-Policy": "same-origin",
     "Cross-Origin-Embedder-Policy": "require-corp",
     "Cross-Origin-Resource-Policy": "same-origin",
